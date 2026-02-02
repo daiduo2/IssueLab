@@ -33,17 +33,27 @@ def main():
     execute_parser.add_argument("--issue", type=int, required=True)
     execute_parser.add_argument("--agents", type=str, required=True, help="空格分隔的代理名称")
     execute_parser.add_argument("--post", action="store_true", help="自动发布结果到 Issue")
+    execute_parser.add_argument("--context", type=str, default="", help="Issue 内容上下文")
+    execute_parser.add_argument("--title", type=str, default="", help="Issue 标题")
 
     # 顺序评审流程
     review_parser = subparsers.add_parser("review", help="运行顺序评审流程")
     review_parser.add_argument("--issue", type=int, required=True)
     review_parser.add_argument("--post", action="store_true", help="自动发布结果到 Issue")
+    review_parser.add_argument("--context", type=str, default="", help="Issue 内容上下文")
+    review_parser.add_argument("--title", type=str, default="", help="Issue 标题")
 
     args = parser.parse_args()
 
+    # 构建上下文
+    context = ""
+    if args.context:
+        title = getattr(args, "title", "") or ""
+        context = f"**Issue 标题**: {title}\n\n**Issue 内容**:\n{args.context}"
+
     if args.command == "execute":
         agents = args.agents.split()
-        results = asyncio.run(run_agents_parallel(args.issue, agents))
+        results = asyncio.run(run_agents_parallel(args.issue, agents, context))
 
         # 输出结果
         for agent_name, response in results.items():
@@ -60,7 +70,7 @@ def main():
     elif args.command == "review":
         # 顺序执行：moderator -> reviewer_a -> reviewer_b -> summarizer
         agents = ["moderator", "reviewer_a", "reviewer_b", "summarizer"]
-        results = asyncio.run(run_agents_parallel(args.issue, agents))
+        results = asyncio.run(run_agents_parallel(args.issue, agents, context))
 
         for agent_name, response in results.items():
             print(f"\n=== {agent_name} result ===")

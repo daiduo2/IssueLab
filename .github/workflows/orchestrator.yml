@@ -37,6 +37,16 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Get Issue content
+        id: get_issue
+        run: |
+          ISSUE_BODY=$(gh issue view ${{ github.event.issue.number }} --json body,title -q '.body')
+          ISSUE_TITLE=$(gh issue view ${{ github.event.issue.number }} --json title -q '.title')
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+
       - name: Run full review process
         run: |
           echo "=== 标签触发评审开始 ==="
@@ -46,7 +56,11 @@ jobs:
             --repo ${{ github.repository }}
 
           echo "Running review flow..."
-          uv run python -m issuelab review --issue ${{ github.event.issue.number }} --post
+          uv run python -m issuelab review \
+            --issue ${{ github.event.issue.number }} \
+            --context "${{ steps.get_issue.outputs.issue_body }}" \
+            --title "${{ steps.get_issue.outputs.issue_title }}" \
+            --post
 
           echo "标记需要总结..."
           gh issue edit ${{ github.event.issue.number }} \
@@ -88,6 +102,16 @@ jobs:
           echo "mentions=$MENTIONS" >> $GITHUB_OUTPUT
           echo "解析到 mentions: $MENTIONS"
 
+      - name: Get Issue content
+        id: get_issue
+        run: |
+          ISSUE_BODY=$(gh issue view ${{ github.event.issue.number }} --json body,title,labels -q '.body')
+          ISSUE_TITLE=$(gh issue view ${{ github.event.issue.number }} --json title -q '.title')
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+
       - name: Run parallel agents
         if: steps.parse.outputs.mentions != ''
         run: |
@@ -95,6 +119,8 @@ jobs:
           uv run python -m issuelab execute \
             --issue ${{ github.event.issue.number }} \
             --agents "${{ steps.parse.outputs.mentions }}" \
+            --context "${{ steps.get_issue.outputs.issue_body }}" \
+            --title "${{ steps.get_issue.outputs.issue_title }}" \
             --post
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -139,6 +165,16 @@ jobs:
             echo "command=/triage" >> $GITHUB_OUTPUT
           fi
 
+      - name: Get Issue content
+        id: get_issue
+        run: |
+          ISSUE_BODY=$(gh issue view ${{ github.event.issue.number }} --json body,title -q '.body')
+          ISSUE_TITLE=$(gh issue view ${{ github.event.issue.number }} --json title -q '.title')
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+
       # 处理 /quiet 命令
       - name: Handle quiet command
         if: steps.extract.outputs.command == '/quiet'
@@ -156,6 +192,8 @@ jobs:
           uv run python -m issuelab execute \
             --issue ${{ github.event.issue.number }} \
             --agents "moderator" \
+            --context "${{ steps.get_issue.outputs.issue_body }}" \
+            --title "${{ steps.get_issue.outputs.issue_title }}" \
             --post
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -172,7 +210,11 @@ jobs:
             --add-label "state:review" \
             --repo ${{ github.repository }}
 
-          uv run python -m issuelab review --issue ${{ github.event.issue.number }} --post
+          uv run python -m issuelab review \
+            --issue ${{ github.event.issue.number }} \
+            --context "${{ steps.get_issue.outputs.issue_body }}" \
+            --title "${{ steps.get_issue.outputs.issue_title }}" \
+            --post
 
           echo "标记需要总结..."
           gh issue edit ${{ github.event.issue.number }} \
@@ -193,6 +235,8 @@ jobs:
           uv run python -m issuelab execute \
             --issue ${{ github.event.issue.number }} \
             --agents "summarizer" \
+            --context "${{ steps.get_issue.outputs.issue_body }}" \
+            --title "${{ steps.get_issue.outputs.issue_title }}" \
             --post
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
