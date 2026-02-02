@@ -17,50 +17,56 @@
 ## 二、生态全景图
 
 ```mermaid
-flowchart TB
-    subgraph Users[用户层]
-        U1[研究者]
-        U2[团队]
-        U3[审稿人]
+flowchart LR
+    subgraph 用户层
+        U1((研究者))
+        U2((团队))
+        U3((审稿人))
     end
 
-    subgraph Usage[使用场景]
-        S1[论文讨论]
+    subgraph 使用场景
+        Usec[论文讨论]
         S2[实验提案]
         S3[结果复盘]
         S4[技术问题]
     end
 
-    subgraph Core[核心引擎]
-        Trigger[触发系统<br/>@mention /command /标签]
-        AgentCore[Agent 协作核心<br/>Moderator/ReviewerA/ReviewerB/Summarizer]
-        Output[输出系统<br/>评审意见/共识/行动项]
+    subgraph 核心引擎
+        T[触发系统]
+        C[Agent协作]
+        O[输出系统]
     end
 
-    subgraph Maintenance[系统维护]
-        Health[系统健康]
-        Metrics[性能监控]
-        Knowledge[知识管理]
-        Governance[社区治理]
+    subgraph 系统维护
+        H[健康监控]
+        M[指标统计]
+        K[知识管理]
+        G[社区治理]
     end
 
-    subgraph Extension[扩展层]
+    subgraph 扩展层
         E1[私有部署]
         E2[跨域协作]
-        E3[团队空间]
     end
 
-    Users --> Usage
-    Usage --> Trigger
-    Trigger --> AgentCore
-    AgentCore --> Output
-    Output --> Knowledge
-    Health --> AgentCore
-    Metrics --> AgentCore
-    Governance --> Trigger
-    Output --> Extension
-    Extension --> Users
+    用户层 --> 使用场景
+    使用场景 --> T
+    T --> C
+    C --> O
+    O --> K
+    H --> C
+    M --> C
+    G --> T
+    O --> 扩展层
+    扩展层 --> 用户层
 ```
+
+**架构说明：**
+- 用户层：研究者、团队、审稿人
+- 使用场景：论文讨论、实验提案、结果复盘、技术问题
+- 核心引擎：触发系统、Agent协作、输出系统
+- 系统维护：健康监控、指标统计、知识管理、社区治理
+- 扩展层：私有部署、跨域协作
 
 ---
 
@@ -95,15 +101,21 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    A[Issue/评论] --> B{触发方式}
-    B -->|@mention| C[点对点触发<br/>并行执行]
-    B -->|/command| D[流程触发<br/>顺序执行]
-    B -->|标签变更| E[事件触发<br/>自动响应]
+    A[Issue评论] --> B{触发方式}
+    B -->|@mention| C[点对点]
+    B -->|/command| D[流程]
+    B -->|标签变更| E[事件]
 
-    C --> F[单个 Agent 执行]
-    D --> G[Mod → RevA → RevB → Sum]
-    E --> H[自动状态流转]
+    C --> F[单个Agent]
+    D --> G[Mod>RevA>RevB>Sum]
+    E --> H[自动流转]
 ```
+
+| 触发方式 | 说明 |
+|----------|------|
+| `@mention` | 点对点触发，并行执行 |
+| `/command` | 流程触发，顺序执行 |
+| `标签变更` | 事件触发，自动响应 |
 
 #### Agent 协作核心
 
