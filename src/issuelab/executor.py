@@ -16,8 +16,10 @@ def load_prompt(agent_name: str) -> str:
         "reviewer_b": "reviewer_b.md",
         "summarizer": "summarizer.md",
     }
-    prompt_path = PROMPTS_DIR / prompts.get(agent_name, "")
-    if prompt_path.exists():
+    if agent_name not in prompts:
+        return ""
+    prompt_path = PROMPTS_DIR / prompts[agent_name]
+    if prompt_path.exists() and prompt_path.is_file():
         return prompt_path.read_text()
     return ""
 
