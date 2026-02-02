@@ -151,7 +151,7 @@ jobs:
       - name: Get Issue comments
         id: get_comments
         run: |
-          # 获取所有评论并格式化
+          # 获取所有评论并格式化，保存到文件
           gh issue view ${{ github.event.issue.number }} \
             --json comments \
             --jq '.comments[] | "- **[\(.author.login)]** (\(.createdAt | strptime("%Y-%m-%dT%H:%M:%SZ") | strftime("%Y-%m-%d %H:%M")):\n\(.body))"' \
@@ -161,24 +161,29 @@ jobs:
           COMMENT_COUNT=$(gh issue view ${{ github.event.issue.number }} \
             --json comments --jq '.comments | length')
           echo "comment_count=$COMMENT_COUNT" >> $GITHUB_OUTPUT
-
-          # 输出多行格式的评论内容
-          echo "issue_comments<<EOF" >> $GITHUB_OUTPUT
-          cat /tmp/comments.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save context to files
+        run: |
+          # 将复杂内容保存到文件，避免 shell 转义问题
+          echo "${{ steps.get_issue.outputs.issue_body }}" > /tmp/issue_body.txt
+          echo "${{ steps.get_issue.outputs.issue_title }}" > /tmp/issue_title.txt
 
       - name: Run parallel agents
         if: steps.parse.outputs.mentions != ''
         run: |
           echo "=== 并行执行代理 ==="
+          ISSUE_BODY=$(cat /tmp/issue_body.txt)
+          ISSUE_TITLE=$(cat /tmp/issue_title.txt)
+          COMMENTS=$(cat /tmp/comments.txt)
+
           uv run python -m issuelab execute \
             --issue ${{ github.event.issue.number }} \
             --agents "${{ steps.parse.outputs.mentions }}" \
-            --context "${{ steps.get_issue.outputs.issue_body }}" \
-            --title "${{ steps.get_issue.outputs.issue_title }}" \
-            --comments "${{ steps.get_comments.outputs.issue_comments }}" \
+            --context "$ISSUE_BODY" \
+            --title "$ISSUE_TITLE" \
+            --comments "$COMMENTS" \
             --comment-count "${{ steps.get_comments.outputs.comment_count }}" \
             --post
         env:
