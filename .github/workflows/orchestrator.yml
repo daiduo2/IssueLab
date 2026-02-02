@@ -130,7 +130,8 @@ jobs:
         (contains(github.event.comment.body, '/review') ||
          contains(github.event.comment.body, '/summarize') ||
          contains(github.event.comment.body, '/quiet') ||
-         contains(github.event.comment.body, '/triage')) &&
+         contains(github.event.comment.body, '/triage') ||
+         contains(github.event.comment.body, '/echo')) &&
         !contains(github.event.comment.body, '@')
     runs-on: ubuntu-latest
     timeout-minutes: 10
