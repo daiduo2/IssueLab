@@ -2,12 +2,10 @@
 import asyncio
 import argparse
 import os
-import sys
 import subprocess
 import tempfile
 from pathlib import Path
 from issuelab.sdk_executor import run_agents_parallel, run_observer, get_agent_matrix_markdown, discover_agents
-from issuelab.parser import parse_mentions
 from issuelab.logging_config import setup_logging, get_logger
 
 # 评论最大长度 (GitHub 限制 65536，实际使用 10000 留余量)

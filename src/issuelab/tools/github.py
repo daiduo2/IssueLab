@@ -2,7 +2,6 @@
 import subprocess
 import json
 import os
-import logging
 from issuelab.retry import retry_sync
 from issuelab.logging_config import get_logger
 

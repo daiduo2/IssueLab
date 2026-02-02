@@ -2,7 +2,6 @@
 import re
 import anyio
 import os
-import logging
 from pathlib import Path
 from typing import Optional
 from claude_agent_sdk import (

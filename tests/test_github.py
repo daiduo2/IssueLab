@@ -1,5 +1,4 @@
 """测试 GitHub 工具"""
-import pytest
 from unittest.mock import patch, MagicMock
 from issuelab.tools.github import get_issue_info, post_comment, update_label
 

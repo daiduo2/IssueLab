@@ -1,5 +1,4 @@
 """测试代理模块"""
-import pytest
 from issuelab.agents import (
     load_prompt,
     AGENT_ALIASES,
