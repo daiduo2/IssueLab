@@ -3,18 +3,24 @@ import asyncio
 import argparse
 import os
 import subprocess
+import tempfile
 from issuelab.sdk_executor import run_agents_parallel
 from issuelab.parser import parse_mentions
 
 
 def post_comment(issue_number: int, body: str) -> bool:
     """发布评论到 Issue"""
-    result = subprocess.run(
-        ["gh", "issue", "comment", str(issue_number), "--body", body],
-        capture_output=True,
-        text=True,
-        env={**os.environ, "GH_TOKEN": os.environ.get("GITHUB_TOKEN", "")}
-    )
+    # 使用临时文件避免命令行长度限制
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+        f.write(body)
+        f.flush()
+        result = subprocess.run(
+            ["gh", "issue", "comment", str(issue_number), "--body-file", f.name],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "GH_TOKEN": os.environ.get("GITHUB_TOKEN", "")}
+        )
+        os.unlink(f.name)
     return result.returncode == 0
 
 
