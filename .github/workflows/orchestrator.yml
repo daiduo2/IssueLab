@@ -93,8 +93,12 @@ jobs:
       - name: Parse @mentions
         id: parse
         run: |
-          python scripts/parse_mentions.py \
-            --comment-body "${{ github.event.comment.body }}"
+          # 使用已安装的 issuelab 包，避免双层包装
+          mentions=$(uv run python -m issuelab.cli.mentions \
+            --comment-body "${{ github.event.comment.body }}" \
+            --output csv)
+          echo "mentions=$mentions" >> $GITHUB_OUTPUT
+          echo "📝 Parsed mentions: $mentions"
 
       - name: Run agents
         if: steps.parse.outputs.mentions != ''
