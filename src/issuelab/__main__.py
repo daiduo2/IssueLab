@@ -74,7 +74,12 @@ def main():
     # Observer 批量分析命令（并行）
     observe_batch_parser = subparsers.add_parser("observe-batch", help="并行分析多个 Issues")
     observe_batch_parser.add_argument("--issues", type=str, required=True, help="Issue 编号列表（逗号分隔）")
-    observe_batch_parser.add_argument("--post", action="store_true", help="自动发布触发评论到 Issue")
+    observe_batch_parser.add_argument(
+        "--auto-trigger", action="store_true", help="自动触发 agent（内置agent用label，用户agent用dispatch）"
+    )
+    observe_batch_parser.add_argument(
+        "--post", action="store_true", help="自动发布触发评论到 Issue（已弃用，推荐使用 --auto-trigger）"
+    )
 
     # 列出所有可用 Agent
     subparsers.add_parser("list-agents", help="列出所有可用的 Agent")
@@ -244,11 +249,29 @@ def main():
                 print(f"  Agent: {result.get('agent', 'N/A')}")
                 print(f"  理由: {result.get('reason', 'N/A')}")
 
-                # 如果需要，自动发布触发评论
-                if getattr(args, "post", False):
+                # 🔥 自动触发 agent（通过 label 或 dispatch）
+                if getattr(args, "auto_trigger", False):
+                    from issuelab.observer_trigger import auto_trigger_agent
+
+                    # 查找对应的 issue 数据
+                    issue_info = next((d for d in issue_data_list if d["issue_number"] == issue_num), None)
+                    if issue_info:
+                        success = auto_trigger_agent(
+                            agent_name=result.get("agent", ""),
+                            issue_number=issue_num,
+                            issue_title=issue_info.get("issue_title", ""),
+                            issue_body=issue_info.get("issue_body", ""),
+                        )
+                        if success:
+                            print("  🚀 已自动触发 agent")
+                        else:
+                            print("  ❌ 自动触发失败")
+
+                # 如果需要，自动发布触发评论（已弃用，使用 auto_trigger 代替）
+                elif getattr(args, "post", False):
                     comment = result.get("comment")
                     if comment and post_comment(issue_num, comment):
-                        print("  ✅ 已发布触发评论")
+                        print("  ✅ 已发布触发评论（⚠️ 注意：bot评论不会触发workflow）")
                     else:
                         print("  ❌ 发布评论失败")
             else:

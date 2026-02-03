@@ -63,10 +63,10 @@ jobs:
         run: |
           echo "=== 并行分析 ${{ steps.get_issues.outputs.issue_count }} 个 Issues ==="
 
-          # 使用新的批处理命令
+          # 🔥 使用新的 auto-trigger 参数替代 --post（避免bot评论触发问题）
           uv run python -m issuelab observe-batch \
             --issues "${{ steps.get_issues.outputs.issue_numbers }}" \
-            --post
+            --auto-trigger
 
           echo "=== 分析完成 ==="
         env:
