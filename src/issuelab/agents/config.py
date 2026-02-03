@@ -32,7 +32,7 @@ SCENE_CONFIGS: dict[str, AgentConfig] = {
         timeout_seconds=60,
     ),
     "review": AgentConfig(
-        max_turns=3,
+        max_turns=5,  # 增加到5轮，支持需要多次工具调用的agent（如summarizer）
         max_budget_usd=0.50,
         timeout_seconds=180,
     ),
