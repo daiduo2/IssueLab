@@ -443,8 +443,10 @@ async def run_single_agent(prompt: str, agent_name: str) -> dict:
 
             # ResultMessage: 执行结果（成本、统计信息）
             elif isinstance(message, ResultMessage):
-                local_id = message.local_id or ""
-                cost_usd = message.total_cost_usd or 0.0
+                # 安全获取属性（不同版本可能字段不同）
+                local_id = getattr(message, "local_id", "") or ""
+                cost_usd = getattr(message, "total_cost_usd", 0.0) or 0.0
+                num_turns = getattr(message, "num_turns", turn_count) or turn_count
 
                 execution_info["local_id"] = local_id
                 execution_info["cost_usd"] = cost_usd
