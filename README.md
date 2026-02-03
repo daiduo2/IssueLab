@@ -107,5 +107,7 @@ uv run python -m issuelab list-agents
 
 ## 文档
 
-- [协作流程详解](./docs/COLLABORATION_FLOW.md)
-- [MVP 方案](./docs/MVP.md)
+- [📘 项目指南](./docs/PROJECT_GUIDE.md) - 用户和贡献者指南
+- [⚙️ 部署配置](./docs/DEPLOYMENT.md) - 系统管理员手册
+- [🔬 技术设计](./docs/TECHNICAL_DESIGN.md) - 架构和技术细节
+- [📋 整合方案](./docs/CONSOLIDATION_PLAN.md) - 文档整合说明（仅供参考）
