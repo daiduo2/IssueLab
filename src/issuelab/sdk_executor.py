@@ -829,6 +829,156 @@ def _try_parse_yaml(response: str) -> dict | None:
     return None
 
 
+def parse_papers_recommendation(response: str, paper_count: int) -> list[dict]:
+    """解析 Observer 对论文推荐的响应
+
+    Args:
+        response: Agent 响应文本（YAML 格式）
+        paper_count: 原始论文数量（用于验证 index）
+
+    Returns:
+        推荐论文列表 [{
+            "index": int,
+            "title": str,
+            "reason": str,
+            "summary": str,
+            "category": str,
+            "url": str,
+            "pdf_url": str,
+            "authors": str,
+            "published": str,
+        }]
+    """
+    import yaml
+
+    recommended = []
+
+    yaml_data = _try_parse_yaml(response)
+    if yaml_data is None:
+        logger.warning("无法解析论文推荐结果")
+        return recommended
+
+    # 解析 recommended 列表
+    rec_list = yaml_data.get("recommended", [])
+    if not rec_list:
+        # 尝试从 analysis 中提取信息
+        logger.warning("响应中未找到 recommended 字段")
+        return recommended
+
+    for item in rec_list:
+        if not isinstance(item, dict):
+            continue
+
+        index = item.get("index", -1)
+        if index < 0 or index >= paper_count:
+            continue
+
+        recommended.append({
+            "index": index,
+            "title": item.get("title", ""),
+            "reason": item.get("reason", ""),
+            "summary": item.get("summary", ""),
+            # 以下字段需要从原始论文数据中获取
+            "category": "",
+            "url": "",
+            "pdf_url": "",
+            "authors": "",
+            "published": "",
+        })
+
+    logger.info(f"解析到 {len(recommended)} 篇推荐论文")
+    return recommended
+
+
+def build_papers_for_observer(papers: list[dict]) -> str:
+    """构建供 Observer 分析的论文上下文
+
+    Args:
+        papers: 论文列表
+
+    Returns:
+        格式化的论文上下文字符串
+    """
+    lines = ["## 可讨论的 arXiv 论文候选\n"]
+
+    for i, paper in enumerate(papers):
+        lines.append(f"### 论文 {i}")
+        lines.append(f"**标题**: {paper.get('title', '')}")
+        lines.append(f"**分类**: {paper.get('category', '')}")
+        lines.append(f"**发布时间**: {paper.get('published', '')}")
+        lines.append(f"**链接**: [{paper.get('url', '')}]({paper.get('url', '')})")
+        lines.append(f"**作者**: {paper.get('authors', '')}")
+        lines.append(f"**摘要**: {paper.get('summary', '')}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+async def run_observer_for_papers(papers: list[dict]) -> list[dict]:
+    """运行 Observer Agent 分析 arXiv 论文列表
+
+    Args:
+        papers: 论文列表，每个论文包含:
+            - id, title, summary, url, pdf_url
+            - authors, published, category
+
+    Returns:
+        推荐论文列表（从 papers 中筛选出的论文）
+    """
+    if not papers:
+        return []
+
+    agents = discover_agents()
+    observer_config = agents.get("observer", {})
+
+    if not observer_config:
+        logger.error("Observer agent not found")
+        return []
+
+    # 构建论文上下文
+    papers_context = build_papers_for_observer(papers)
+
+    # 加载并修改 observer prompt（使用 arXiv 论文分析模式）
+    # 需要将 prompt 中的 {issue_title}, {issue_body} 等替换为论文上下文
+    prompt_template = observer_config["prompt"]
+
+    # 替换占位符
+    prompt = prompt_template.replace("{issue_number}", "0")
+    prompt = prompt.replace("{issue_title}", "arXiv 论文智能分析")
+    prompt = prompt.replace("{issue_body}", papers_context)
+    prompt = prompt.replace("{comments}", "无评论")
+
+    # 尝试替换 {agent_matrix}（如果存在）
+    if "{agent_matrix}" in prompt:
+        agent_matrix = get_agent_matrix_markdown()
+        prompt = prompt.replace("{agent_matrix}", agent_matrix)
+
+    logger.info(f"[Observer] 开始分析 {len(papers)} 篇候选论文")
+
+    # 调用 agent
+    result = await run_single_agent(prompt, "observer")
+
+    # 解析响应
+    response_text = result.get("response", "")
+    logger.debug(f"[Observer] 响应长度: {len(response_text)} 字符")
+
+    # 解析推荐结果
+    recommended_indices = parse_papers_recommendation(response_text, len(papers))
+
+    # 从原始论文数据中获取完整信息
+    recommended_papers = []
+    for item in recommended_indices:
+        idx = item["index"]
+        if 0 <= idx < len(papers):
+            paper = papers[idx].copy()
+            paper["reason"] = item.get("reason", "")
+            paper["summary"] = item.get("summary", paper.get("summary", ""))
+            recommended_papers.append(paper)
+
+    logger.info(f"[Observer] 推荐 {len(recommended_papers)} 篇论文")
+    return recommended_papers
+
+
 def _get_default_trigger_comment(agent: str) -> str:
     """获取默认的触发评论
 

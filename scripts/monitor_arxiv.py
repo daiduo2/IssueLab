@@ -57,7 +57,7 @@ def fetch_papers(categories: list[str], last_scan: str, max_papers: int = 10) ->
     all_papers = []
 
     for category in categories:
-        print(f"📥 获取 {category} 分类...")
+        print(f"[INFO] 获取 {category} 分类...")
 
         base_url = "http://export.arxiv.org/api/query"
         params = {
@@ -103,7 +103,7 @@ def fetch_papers(categories: list[str], last_scan: str, max_papers: int = 10) ->
                 })
 
         except Exception as e:
-            print(f"   ⚠️  获取失败: {e}")
+            print(f"   [WARNING] 获取失败: {e}")
             continue
 
     # 去重并排序
@@ -135,107 +135,65 @@ def build_papers_for_observer(papers: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def analyze_with_observer(papers: list[dict], papers_context: str, token: str) -> list[dict]:
+def analyze_with_observer(papers: list[dict], token: str) -> list[dict]:
     """使用 Observer agent 分析论文，返回推荐的论文"""
-    # 构建 Observer 的系统提示
-    observer_prompt = """你是 IssueLab 的 Observer Agent，负责分析 arXiv 论文并推荐值得讨论的论文。
+    import asyncio
+    from pathlib import Path
 
-## 模式 1：arXiv 论文分析
+    # 动态导入 SDK
+    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    from issuelab.sdk_executor import run_observer_for_papers
 
-当接收 arXiv 论文列表时，分析并推荐值得讨论的论文。
+    print(f"\n[INFO] 使用 Observer Agent 智能分析 {len(papers)} 篇论文...")
 
-### 决策标准
+    # 调用真正的 Observer agent
+    try:
+        recommended = asyncio.run(run_observer_for_papers(papers))
+        print(f"[OK] Observer 分析完成，推荐 {len(recommended)} 篇论文")
+        return recommended
+    except Exception as e:
+        print(f"[WARNING] Observer 分析失败: {e}")
+        print("[INFO] 回退到启发式规则...")
 
-选择论文时考虑以下因素：
+        # 回退到启发式规则
+        recommended = []
+        selected_topics = set()
 
-| 维度 | 说明 | 推荐标准 |
-|------|------|---------|
-| **研究热度** | 热门方向（LLM、CV、NLP） | 优先 |
-| **创新性** | 新方法、新思路 | 优先 |
-| **实用性** | 开源、复现性好 | 优先 |
-| **时效性** | 最新发布 | 优先 |
-| **争议性** | 有讨论空间 | 优先 |
+        for i, paper in enumerate(papers):
+            if paper['category'] in selected_topics and len(selected_topics) >= 2:
+                continue
 
-### 输出格式
+            if len(recommended) < 2:
+                hot_keywords = ['transformer', 'llm', 'diffusion', 'reinforcement', 'gpt', 'neural']
+                summary_lower = paper['summary'].lower()
+                hot_count = sum(1 for kw in hot_keywords if kw in summary_lower)
 
-请输出 YAML 格式的推荐结果：
+                reason = f"最新发布的 {paper['category']} 论文"
+                if hot_count > 0:
+                    reason = f"{paper['category']} 热门方向论文，包含 {hot_count} 个热点关键词"
 
-```yaml
-analysis: |
-  共收到 X 篇候选论文，经过分析后推荐 Y 篇值得讨论。
+                recommended.append({
+                    "index": i,
+                    "title": paper['title'],
+                    "reason": reason,
+                    "summary": paper['summary'][:200] + "...",
+                    "category": paper['category'],
+                    "url": paper['url'],
+                    "pdf_url": paper['pdf_url'],
+                    "authors": paper['authors'],
+                    "published": paper['published'],
+                })
 
-  简要分析：
-  - 论文0：xxx
-  - 论文1：xxx
+                selected_topics.add(paper['category'])
 
-recommended:
-  - index: 0
-    title: 论文标题
-    reason: "推荐理由（研究方向热度 + 创新点）"
-    summary: "论文摘要（用于 Issue 介绍，100字左右）"
-```
-
-### 推荐策略
-
-- 每批论文最多推荐 2-3 篇
-- 优先选择不同方向的论文，避免主题重复
-- 如果论文质量普遍较高，可推荐全部
-- 如果论文质量普遍较低，可少于 2 篇
-
-## 当前任务
-
-请分析以下候选论文，推荐值得创建 Issue 讨论的论文：
-"""
-
-    # 使用 Claude API 分析（简化实现：返回前2篇）
-    # 实际实现中，这里应该调用 Claude API
-    # 由于当前架构限制，我们使用简单的启发式规则
-
-    print(f"\n🧠 分析论文中...")
-
-    # 简单启发式规则选择论文
-    recommended = []
-    selected_topics = set()
-
-    for i, paper in enumerate(papers):
-        # 跳过已被选过相同分类的
-        if paper['category'] in selected_topics and len(selected_topics) >= 2:
-            continue
-
-        # 选择前 2 篇不同分类的论文
-        if len(recommended) < 2:
-            # 优先选择摘要中包含热门关键词的论文
-            hot_keywords = ['transformer', 'llm', 'diffusion', 'reinforcement', 'gpt', 'neural']
-            summary_lower = paper['summary'].lower()
-            hot_count = sum(1 for kw in hot_keywords if kw in summary_lower)
-
-            reason = f"最新发布的 {paper['category']} 论文"
-            if hot_count > 0:
-                reason = f"{paper['category']} 热门方向论文，包含 {hot_count} 个热点关键词"
-
-            recommended.append({
-                "index": i,
-                "title": paper['title'],
-                "reason": reason,
-                "summary": paper['summary'][:200] + "...",
-                "category": paper['category'],
-                "url": paper['url'],
-                "pdf_url": paper['pdf_url'],
-                "authors": paper['authors'],
-                "published": paper['published'],
-            })
-
-            selected_topics.add(paper['category'])
-
-    print(f"✅ 分析完成，推荐 {len(recommended)} 篇论文")
-
-    return recommended
+        print(f"[OK] 回退分析完成，推荐 {len(recommended)} 篇论文")
+        return recommended
 
 
 def create_issues(recommended: list[dict], repo_name: str, token: str) -> int:
     """根据 Observer 推荐创建 GitHub Issues"""
     if not recommended:
-        print("📭 无推荐论文，不创建 Issue")
+        print("[INFO] 无推荐论文，不创建 Issue")
         return 0
 
     g = Github(token)
@@ -252,7 +210,7 @@ def create_issues(recommended: list[dict], repo_name: str, token: str) -> int:
             print(f"⏭️  已存在: {title[:50]}...")
             continue
 
-        body = f"""## 📄 论文信息
+        body = f"""## 论文信息
 
 **标题**: [{paper['title']}]({paper['url']})
 **作者**: {paper['authors']}
@@ -260,11 +218,11 @@ def create_issues(recommended: list[dict], repo_name: str, token: str) -> int:
 **分类**: {paper['category']}
 **PDF**: [Download]({paper['pdf_url']})
 
-## 📝 简介
+## 简介
 
 {paper['summary']}
 
-## 💬 推荐理由
+## 推荐理由
 
 {paper['reason']}
 
@@ -281,12 +239,12 @@ _由 arXiv Monitor 自动创建_"""
 
         # 创建 Issue
         issue = repo.create_issue(title=title, body=body)
-        print(f"✅ 创建 Issue: {title[:50]}...")
+        print(f"[OK] 创建 Issue: {title[:50]}...")
 
         # 创建评论触发 @Moderator（评论中的 @ 会触发 orchestrator.yml）
-        trigger_comment = "@Moderator 请分诊"
+        trigger_comment = "@Moderator 请审核"
         issue.create_comment(trigger_comment)
-        print(f"📝 触发评论: {trigger_comment}")
+        print(f"[INFO] 触发评论: {trigger_comment}")
 
         created += 1
         time.sleep(2)
@@ -322,14 +280,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n📊 发现 {len(papers)} 篇新论文")
 
     if not papers:
-        print("📭 未发现新论文")
+        print("[INFO] 未发现新论文")
         return 0
 
     # 保存 JSON（如果指定）
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(papers, f, ensure_ascii=False, indent=2)
-        print(f"💾 保存到: {args.output}")
+        print(f"[INFO] 保存到: {args.output}")
 
     # 仅扫描模式
     if args.scan_only:
@@ -339,18 +297,15 @@ def main(argv: list[str] | None = None) -> int:
 
     # 分析并创建 Issues
     if args.token and args.repo:
-        # 构建上下文
-        papers_context = build_papers_for_observer(papers)
-
         # Observer 分析
-        recommended = analyze_with_observer(papers, papers_context, args.token)
+        recommended = analyze_with_observer(papers, args.token)
 
         # 创建 Issues
-        print(f"\n📄 创建 Issues...")
+        print(f"\n[INFO] 创建 Issues...")
         created = create_issues(recommended, args.repo, args.token)
-        print(f"\n🎉 完成！创建 {created} 个 Issues")
+        print(f"\n[OK] 完成！创建 {created} 个 Issues")
     else:
-        print("ℹ️  提供 --token 和 --repo 参数可自动分析并创建 Issues")
+        print("[INFO] 提供 --token 和 --repo 参数可自动分析并创建 Issues")
         for i, p in enumerate(papers, 1):
             print(f"   {i}. [{p['category']}] {p['title'][:50]}...")
 
