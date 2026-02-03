@@ -20,7 +20,7 @@
 
 ## 使用方式
 
-### @Mention 触发（推荐）
+### @Mention 触发
 
 ```markdown
 @Moderator 分诊
@@ -33,19 +33,12 @@
 
 **支持别名**：`@mod`、`@reviewer`/`@reviewera`、`@reviewerb`/`@revb`、`@summary`
 
-**注册用户**（通过 Plan B dispatch 到用户 fork）：
-```markdown
-@alice 请评审我的论文
-```
-
-### /Command 触发（流程命令）
+### /Command 触发
 
 ```markdown
 /review      # 完整评审流程（moderator -> reviewer_a -> reviewer_b -> summarizer）
-/quiet       # 机器人静默（添加 bot:quiet 标签）
+/quiet       # 机器人静默
 ```
-
-**注意**：`/triage`、`/echo`、`/summarize` 已废弃，请使用对应的 `@Mention`。
 
 ---
 

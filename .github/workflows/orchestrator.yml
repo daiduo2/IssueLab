@@ -199,9 +199,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # ========== /command 触发（流程命令） ==========
-  # 注意：Agent 调用请使用 @Mention 方式
-  # /triage, /echo, /summarize 已废弃，请使用 @Moderator, @Echo, @Summarizer
+  # ========== /command 触发（仅 /review 和 /quiet） ==========
   process-command:
     if: github.event_name == 'issue_comment' &&
         (contains(github.event.comment.body, '/review') ||
@@ -245,7 +243,6 @@ jobs:
             echo "command=/quiet" >> $GITHUB_OUTPUT
           fi
 
-      # 处理 /quiet 命令
       - name: Handle quiet command
         if: steps.extract.outputs.command == '/quiet'
         run: |
@@ -255,7 +252,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 处理 /review 命令：运行完整评审流程
       - name: Run review process
         if: steps.extract.outputs.command == '/review'
         run: |
@@ -287,7 +283,6 @@ jobs:
           CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK: "true"
           CLAUDE_CODE_STREAM_CLOSE_TIMEOUT: "30000"
 
-      # 上传日志文件
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4

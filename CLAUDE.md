@@ -101,16 +101,14 @@ trigger_conditions:
 
 ### Trigger Mechanisms
 
-1. **@Mention** (via orchestrator.yml) - Primary method:
+1. **@Mention** (via orchestrator.yml):
    - **Built-in agents** (`@Moderator`, `@ReviewerA`, `@ReviewerB`, `@Summarizer`, `@Observer`, `@Echo`, `@Test`): Execute in main repo
    - **Registered users** (`@alice`): Dispatch to user's fork via `dispatch_agents.yml`
    - **Aliases**: `@mod` → moderator, `@reviewer`/`@reviewera` → reviewer_a, `@reviewerb`/`@revb` → reviewer_b, `@summary` → summarizer
 
-2. **/Command** (via orchestrator.yml) - Workflow commands only:
+2. **/Command** (via orchestrator.yml):
    - `/review` - Sequential flow: moderator -> reviewer_a -> reviewer_b -> summarizer
    - `/quiet` - Add `bot:quiet` label to silence the bot
-
-   **Deprecated**: `/triage`, `/echo`, `/summarize` - Use `@Moderator`, `@Echo`, `@Summarizer` instead.
 
 3. **Label**:
    - Add `state:ready-for-review` to trigger full review
