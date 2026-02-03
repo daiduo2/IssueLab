@@ -12,9 +12,9 @@ class Config:
     def get_anthropic_api_key() -> str:
         """获取 Anthropic API Key
 
-        优先级: ANTHROPIC_API_KEY > ANTHROPIC_AUTH_KEY
+        优先级: ANTHROPIC_API_KEY > ANTHROPIC_AUTH_TOKEN
         """
-        return os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_KEY", "")
+        return os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
 
     @staticmethod
     def get_anthropic_base_url() -> str:

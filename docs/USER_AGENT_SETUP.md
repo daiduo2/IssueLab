@@ -12,7 +12,7 @@
 
 | Secret 名称 | 说明 | 获取方式 |
 |------------|------|---------|
-| `ANTHROPIC_AUTH_KEY` | Anthropic API 密钥 | https://console.anthropic.com/settings/keys |
+| `ANTHROPIC_AUTH_TOKEN` | Anthropic API 密钥 | https://console.anthropic.com/settings/keys |
 | `ANTHROPIC_BASE_URL` | API 基础 URL（可选） | 默认：https://api.minimaxi.com/anthropic |
 | `ANTHROPIC_MODEL` | 模型名称（可选） | 默认：MiniMax-M2.1 |
 
@@ -136,7 +136,7 @@ GitHub 的安全机制：
 gh secret list
 
 # 应该看到：
-# ANTHROPIC_AUTH_KEY        Updated ...
+# ANTHROPIC_AUTH_TOKEN        Updated ...
 # PAT_TOKEN                 Updated ...  (可选)
 # ANTHROPIC_BASE_URL        Updated ...  (可选，默认: https://api.minimaxi.com/anthropic)
 # ANTHROPIC_MODEL           Updated ...  (可选，默认: MiniMax-M2.1)

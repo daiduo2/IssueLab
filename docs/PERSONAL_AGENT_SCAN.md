@@ -50,7 +50,7 @@ author:
 
 在你的fork仓库中，进入 `Settings` → `Secrets and variables` → `Actions`，添加：
 
-- `ANTHROPIC_AUTH_KEY`: 你的Anthropic API密钥
+- `ANTHROPIC_AUTH_TOKEN`: 你的Anthropic API密钥
 - `ANTHROPIC_BASE_URL`: （可选）API base URL
 - `ANTHROPIC_MODEL`: （可选）模型名称，默认claude-sonnet-4-20250514
 
