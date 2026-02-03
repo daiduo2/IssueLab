@@ -106,6 +106,8 @@ def main():
     personal_reply_parser.add_argument(
         "--repo", type=str, default="gqy20/IssueLab", help="主仓库名称（默认gqy20/IssueLab）"
     )
+    personal_reply_parser.add_argument("--issue-title", type=str, default="", help="Issue标题（可选，用于优化）")
+    personal_reply_parser.add_argument("--issue-body", type=str, default="", help="Issue内容（可选，用于优化）")
     personal_reply_parser.add_argument("--post", action="store_true", help="自动发布回复到主仓库")
 
     args = parser.parse_args()
@@ -377,20 +379,26 @@ def main():
             print(f"❌ 未找到agent配置: {agent_config_path}")
             return 1
 
-        # 从主仓库获取issue信息
-        try:
-            result = subprocess.run(
-                ["gh", "issue", "view", str(args.issue), "--repo", args.repo, "--json", "title,body"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            issue_data = json.loads(result.stdout)
-            issue_title = issue_data.get("title", "")
-            issue_body = issue_data.get("body", "")
-        except Exception as e:
-            print(f"❌ 获取issue信息失败: {e}")
-            return 1
+        # 获取issue信息：优先使用传入的参数，否则从gh获取
+        if args.issue_title and args.issue_body:
+            issue_title = args.issue_title
+            issue_body = args.issue_body
+            print(f"使用传入的Issue信息")
+        else:
+            try:
+                result = subprocess.run(
+                    ["gh", "issue", "view", str(args.issue), "--repo", args.repo, "--json", "title,body"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                issue_data = json.loads(result.stdout)
+                issue_title = issue_data.get("title", "")
+                issue_body = issue_data.get("body", "")
+                print(f"从主仓库获取Issue信息")
+            except Exception as e:
+                print(f"❌ 获取issue信息失败: {e}")
+                return 1
 
         # 构建更详细的上下文，明确告诉Agent应该做什么
         context = f"""你被邀请参与讨论 GitHub Issue #{args.issue}。
