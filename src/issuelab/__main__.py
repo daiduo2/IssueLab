@@ -7,12 +7,9 @@ import subprocess
 
 from issuelab.config import Config
 from issuelab.logging_config import get_logger, setup_logging
-from issuelab.sdk_executor import (
-    discover_agents,
-    get_agent_matrix_markdown,
-    run_agents_parallel,
-    run_observer,
-)
+from issuelab.agents.discovery import discover_agents, get_agent_matrix_markdown
+from issuelab.agents.executor import run_agents_parallel
+from issuelab.agents.observer import run_observer
 from issuelab.tools.github import get_issue_info, post_comment
 
 # 初始化日志
@@ -273,7 +270,7 @@ def main():
             return
 
         # 并行分析
-        from issuelab.sdk_executor import run_observer_batch
+        from issuelab.agents.observer import run_observer_batch
 
         results = asyncio.run(run_observer_batch(issue_data_list))
 

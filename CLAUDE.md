@@ -41,7 +41,12 @@ uv run python -m issuelab list-agents
 | File | Purpose |
 |------|---------|
 | `src/issuelab/__main__.py` | CLI entry point (execute/review/observe/observe-batch/list-agents) |
-| `src/issuelab/sdk_executor.py` | Agent execution engine - `create_agent_options()`, `AgentConfig`, `SCENE_CONFIGS`, `run_agents_parallel()` |
+| `src/issuelab/agents/config.py` | Agent configuration management - `AgentConfig`, `SCENE_CONFIGS` |
+| `src/issuelab/agents/discovery.py` | Agent discovery and metadata parsing |
+| `src/issuelab/agents/executor.py` | Core execution logic - `run_single_agent()`, `run_agents_parallel()` |
+| `src/issuelab/agents/observer.py` | Observer-specific logic - `run_observer()`, `run_observer_batch()` |
+| `src/issuelab/agents/options.py` | SDK options building - `create_agent_options()` |
+| `src/issuelab/agents/parsers.py` | Response parsing utilities |
 | `src/issuelab/config.py` | Environment variable management |
 | `src/issuelab/parser.py` | @mention parsing with alias mapping |
 | `src/issuelab/agents/__init__.py` | Agent discovery from `prompts/` and `agents/` |

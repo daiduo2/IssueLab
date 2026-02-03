@@ -55,7 +55,7 @@
 | **Dispatcher** | `.github/workflows/dispatch_agents.yml` | 跨仓库触发 |
 | **Registry** | `agents/_registry/*.yml` | 用户 agent 注册信息 |
 | **User Agent Workflow** | Fork: `.github/workflows/user_agent.yml` | 接收触发、执行 agent |
-| **SDK Executor** | `src/issuelab/sdk_executor.py` | Agent 执行引擎 |
+| **Agent Modules** | `src/issuelab/agents/` | Agent 执行引擎模块化架构 |
 | **Dispatch CLI** | `src/issuelab/cli/dispatch.py` | 动态 Token 生成 + Dispatch |
 
 ### 1.3 数据流

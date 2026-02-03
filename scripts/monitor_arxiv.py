@@ -11,10 +11,15 @@ Usage:
 
     # 仅扫描获取论文列表
     python scripts/monitor_arxiv.py --scan-only --output /tmp/papers.json
+
+Environment:
+    LOG_LEVEL: 设置日志级别 (DEBUG, INFO, WARNING, ERROR)
 """
 
 import argparse
 import json
+import logging
+import os
 import re
 import sys
 import time
@@ -23,6 +28,13 @@ from typing import Any
 
 import feedparser
 from github import Github
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 def parse_arxiv_date(date_str: str) -> str:
@@ -142,18 +154,22 @@ def analyze_with_observer(papers: list[dict], token: str) -> list[dict]:
 
     # 动态导入 SDK
     sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-    from issuelab.sdk_executor import run_observer_for_papers
+    from issuelab.agents.observer import run_observer_for_papers
 
-    print(f"\n[INFO] 使用 Observer Agent 智能分析 {len(papers)} 篇论文...")
+    logger.info(f"\n{'='*60}")
+    logger.info(f"[Observer Agent] 开始智能分析 {len(papers)} 篇论文")
+    logger.info(f"{'='*60}")
 
     # 调用真正的 Observer agent
     try:
+        logger.debug("[Observer] 调用 run_observer_for_papers...")
         recommended = asyncio.run(run_observer_for_papers(papers))
-        print(f"[OK] Observer 分析完成，推荐 {len(recommended)} 篇论文")
+        logger.info(f"[Observer] 分析完成，推荐 {len(recommended)} 篇论文")
+        logger.debug(f"[Observer] 推荐结果: {recommended}")
         return recommended
     except Exception as e:
-        print(f"[WARNING] Observer 分析失败: {e}")
-        print("[INFO] 回退到启发式规则...")
+        logger.error(f"[Observer] 分析失败: {e}", exc_info=True)
+        logger.info("[回退] 使用启发式规则替代...")
 
         # 回退到启发式规则
         recommended = []
@@ -264,6 +280,11 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
+    # 根据环境变量设置日志级别
+    log_level = getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
+    logging.getLogger().setLevel(log_level)
+    logger.setLevel(log_level)
+
     # 默认 7 天前
     last_scan = args.last_scan or (
         datetime.now() - datetime.timedelta(days=7)
@@ -271,28 +292,30 @@ def main(argv: list[str] | None = None) -> int:
 
     categories = [c.strip() for c in args.categories.split(",") if c.strip()]
 
-    print(f"🔍 扫描 arXiv...")
-    print(f"   分类: {', '.join(categories)}")
-    print(f"   上次扫描: {last_scan}")
+    logger.info(f"{'='*60}")
+    logger.info("[arXiv Monitor] 开始扫描新论文")
+    logger.info(f"{'='*60}")
+    logger.info(f"分类: {', '.join(categories)}")
+    logger.info(f"上次扫描: {last_scan}")
 
     # 获取论文
     papers = fetch_papers(categories, last_scan, args.max_papers)
-    print(f"\n📊 发现 {len(papers)} 篇新论文")
+    logger.info(f"发现 {len(papers)} 篇新论文")
 
     if not papers:
-        print("[INFO] 未发现新论文")
+        logger.info("未发现新论文")
         return 0
 
     # 保存 JSON（如果指定）
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(papers, f, ensure_ascii=False, indent=2)
-        print(f"[INFO] 保存到: {args.output}")
+        logger.info(f"保存到: {args.output}")
 
     # 仅扫描模式
     if args.scan_only:
         for i, p in enumerate(papers, 1):
-            print(f"   {i}. [{p['category']}] {p['title'][:50]}...")
+            logger.info(f"   {i}. [{p['category']}] {p['title'][:50]}...")
         return 0
 
     # 分析并创建 Issues
@@ -301,16 +324,19 @@ def main(argv: list[str] | None = None) -> int:
         recommended = analyze_with_observer(papers, args.token)
 
         # 创建 Issues
-        print(f"\n[INFO] 创建 Issues...")
+        logger.info("开始创建 Issues...")
         created = create_issues(recommended, args.repo, args.token)
-        print(f"\n[OK] 完成！创建 {created} 个 Issues")
+        logger.info(f"{'='*60}")
+        logger.info(f"[完成] 创建 {created} 个 Issues")
+        logger.info(f"{'='*60}")
     else:
-        print("[INFO] 提供 --token 和 --repo 参数可自动分析并创建 Issues")
+        logger.info("提供 --token 和 --repo 参数可自动分析并创建 Issues")
         for i, p in enumerate(papers, 1):
-            print(f"   {i}. [{p['category']}] {p['title'][:50]}...")
+            logger.info(f"   {i}. [{p['category']}] {p['title'][:50]}...")
 
     return 0
 
 
 if __name__ == "__main__":
+    import os
     sys.exit(main())

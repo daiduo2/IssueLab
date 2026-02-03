@@ -2,14 +2,8 @@
 
 from unittest.mock import patch
 
-from issuelab.sdk_executor import (
-    SCENE_CONFIGS,
-    AgentConfig,
-    _cached_agent_options,
-    clear_agent_options_cache,
-    create_agent_options,
-    get_agent_config_for_scene,
-)
+from issuelab.agents.config import SCENE_CONFIGS, AgentConfig, get_agent_config_for_scene
+from issuelab.agents.options import _cached_agent_options, clear_agent_options_cache, create_agent_options
 
 
 class TestAgentConfig:

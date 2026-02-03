@@ -238,7 +238,7 @@ gh issue edit 1 --add-label "state:ready-for-review"
 
 | 模块 | 文件 | 说明 |
 |------|------|------|
-| Observer 执行 | `src/issuelab/sdk_executor.py` | Observer Agent 执行 |
+| Observer 执行 | `src/issuelab/agents/observer.py` | Observer Agent 执行 |
 | 自动触发 | `src/issuelab/observer_trigger.py` | 自动触发逻辑 |
 
 ### 测试用例
@@ -309,7 +309,7 @@ def test_observe_batch_triggers_on_should_trigger_true(mock_auto_trigger):
 
 | 模块 | 文件 | 说明 |
 |------|------|------|
-| Agent 发现 | `src/issuelab/sdk_executor.py` | discover_agents() |
+| Agent 发现 | `src/issuelab/agents/discovery.py` | discover_agents() |
 | 测试 | `tests/test_agents.py` | Agent 相关测试 |
 
 ### 测试用例
@@ -319,7 +319,7 @@ def test_observe_batch_triggers_on_should_trigger_true(mock_auto_trigger):
 ```python
 def test_discover_agents():
     """测试动态发现 Agent"""
-    from issuelab.sdk_executor import discover_agents
+    from issuelab.agents.discovery import discover_agents
 
     agents = discover_agents()
 
@@ -340,7 +340,7 @@ def test_discover_agents():
 ```python
 def test_get_agent_matrix_markdown():
     """测试生成 Agent 矩阵"""
-    from issuelab.sdk_executor import get_agent_matrix_markdown
+    from issuelab.agents.discovery import get_agent_matrix_markdown
 
     matrix = get_agent_matrix_markdown()
 
@@ -585,5 +585,5 @@ uv run pytest tests/test_agents.py -v
 
 - [CLAUDE.md](../CLAUDE.md) - 项目架构说明
 - [orchestrator.yml](../.github/workflows/orchestrator.yml) - GitHub Actions 工作流
-- [SDK Executor](src/issuelab/sdk_executor.py) - Agent 执行引擎
+- [Agent Modules](src/issuelab/agents/) - Agent 执行引擎模块化架构
 - [Parser](src/issuelab/parser.py) - @mention 解析器

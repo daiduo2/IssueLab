@@ -57,7 +57,7 @@ class TestEnvironmentVariables:
 
     def test_skip_version_check_env_is_true(self):
         """CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK 应该设置为 true"""
-        from issuelab.sdk_executor import create_agent_options
+        from issuelab.agents.options import create_agent_options
 
         options = create_agent_options()
         assert "CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK" in options.env
@@ -65,7 +65,7 @@ class TestEnvironmentVariables:
 
     def test_default_agent_config(self):
         """默认 AgentConfig 应该符合预期"""
-        from issuelab.sdk_executor import AgentConfig
+        from issuelab.agents.config import AgentConfig
 
         config = AgentConfig()
         assert config.max_turns == 3

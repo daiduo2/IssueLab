@@ -1,6 +1,6 @@
 """测试自定义 Agent (agents/ 目录) 加载"""
 
-from issuelab.sdk_executor import discover_agents
+from issuelab.agents.discovery import discover_agents
 
 
 def test_discover_agents_finds_gqy22():

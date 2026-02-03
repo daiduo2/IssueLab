@@ -1,6 +1,6 @@
 """测试并行执行器"""
 
-from issuelab.sdk_executor import load_prompt
+from issuelab.agents.discovery import load_prompt
 
 
 def test_load_prompt_unknown_agent():

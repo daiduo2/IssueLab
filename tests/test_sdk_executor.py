@@ -2,12 +2,9 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from issuelab.sdk_executor import (
-    create_agent_options,
-    discover_agents,
-    load_prompt,
-    parse_observer_response,
-)
+from issuelab.agents.options import create_agent_options
+from issuelab.agents.discovery import discover_agents, load_prompt
+from issuelab.agents.parsers import parse_observer_response
 
 
 def test_discover_agents_returns_dict():
@@ -138,7 +135,7 @@ class TestStreamingOutput:
     @pytest.mark.asyncio
     async def test_text_block_outputs_to_console_and_log(self):
         """TextBlock 应该输出到终端和日志"""
-        from issuelab.sdk_executor import run_single_agent
+        from issuelab.agents.executor import run_single_agent
         from claude_agent_sdk import AssistantMessage, ResultMessage
         from claude_agent_sdk.types import TextBlock
 
@@ -167,7 +164,7 @@ class TestStreamingOutput:
     @pytest.mark.asyncio
     async def test_tool_use_block_outputs_to_console_and_log(self):
         """ToolUseBlock 应该输出到终端和日志"""
-        from issuelab.sdk_executor import run_single_agent
+        from issuelab.agents.executor import run_single_agent
         from claude_agent_sdk import AssistantMessage, ResultMessage
         from claude_agent_sdk.types import ToolUseBlock
 
@@ -196,7 +193,7 @@ class TestStreamingOutput:
     @pytest.mark.asyncio
     async def test_thinking_block_is_skipped(self):
         """ThinkingBlock 应该被跳过，不输出"""
-        from issuelab.sdk_executor import run_single_agent
+        from issuelab.agents.executor import run_single_agent
         from claude_agent_sdk import AssistantMessage, ResultMessage
         from claude_agent_sdk.types import ThinkingBlock
 
@@ -225,7 +222,7 @@ class TestStreamingOutput:
     @pytest.mark.asyncio
     async def test_tool_result_block_logs_only(self):
         """ToolResultBlock 应该只记录日志，不输出到终端"""
-        from issuelab.sdk_executor import run_single_agent
+        from issuelab.agents.executor import run_single_agent
         from claude_agent_sdk import AssistantMessage, ResultMessage
         from claude_agent_sdk.types import ToolResultBlock
 
