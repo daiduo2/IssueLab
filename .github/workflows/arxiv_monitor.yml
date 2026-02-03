@@ -10,8 +10,8 @@ on:
         required: false
         default: 'cs.AI,cs.LG,cs.CL'
         type: string
-      max_papers:
-        description: 'Max papers'
+      max_recommended:
+        description: 'Max recommended papers to create issues'
         required: false
         default: '2'
         type: string
@@ -26,8 +26,9 @@ permissions:
 
 env:
   CATEGORIES: ${{ github.event.inputs.categories || 'cs.AI,cs.LG,cs.CL' }}
-  MAX_PAPERS: ${{ github.event.inputs.max_papers || '2' }}
-  # 使用 PAT_TOKEN 模拟用户发送，避免 bot 触发限制
+  MAX_RECOMMENDED: ${{ github.event.inputs.max_recommended || '2' }}
+  # 获取更多论文供智能分析，分析后筛选创建 Issue
+  FETCH_PAPERS: 10
   GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
 jobs:
@@ -55,13 +56,17 @@ jobs:
             echo "last_scan=$LAST_SCAN" >> $GITHUB_OUTPUT
           fi
 
-      - name: Fetch papers & create issues
+      - name: Fetch, analyze & create issues
         run: |
+          echo "🔍 扫描 arXiv 新论文..."
+          echo "📥 获取 ${{ env.FETCH_PAPERS }} 篇候选论文供分析"
+          echo ""
+
           python scripts/monitor_arxiv.py \
-            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --token "${{ env.GH_TOKEN }}" \
             --repo "${{ github.repository }}" \
             --categories "${{ env.CATEGORIES }}" \
-            --max-papers ${{ env.MAX_PAPERS }} \
+            --max-papers ${{ env.FETCH_PAPERS }} \
             --last-scan "${{ steps.last_scan.outputs.last_scan }}"
 
       - name: Update last scan time
