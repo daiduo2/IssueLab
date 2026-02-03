@@ -400,7 +400,7 @@ jobs:
           ARXIV_STORAGE_PATH: ${{ github.workspace }}/.arxiv-papers
           LOG_FILE: ${{ github.workspace }}/logs/echo_${{ github.event.issue.number }}.log
           LOG_LEVEL: DEBUG
-          ENABLE_ARXIV_MCP: true
+          ENABLE_ARXIV_MCP: false
           ENABLE_GITHUB_MCP: false
           CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK: "true"
           CLAUDE_CODE_STREAM_CLOSE_TIMEOUT: "30000"
