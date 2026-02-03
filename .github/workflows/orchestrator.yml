@@ -89,8 +89,10 @@ jobs:
 
   # ========== @mention 触发：检测并分发 ==========
   detect-mentions:
-    if: github.event_name == 'issue_comment' &&
-        contains(github.event.comment.body, '@')
+    if: |
+      github.event_name == 'issue_comment' &&
+      contains(github.event.comment.body, '@') &&
+      !startsWith(github.event.comment.body, '[Agent:')
     runs-on: ubuntu-latest
     timeout-minutes: 5
 

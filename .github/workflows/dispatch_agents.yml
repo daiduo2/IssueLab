@@ -14,6 +14,10 @@ permissions:
 jobs:
   dispatch:
     runs-on: ubuntu-latest
+    # 跳过 Agent 自动回复，避免反馈循环
+    if: |
+      (github.event_name == 'issues' && !startsWith(github.event.issue.body, '[Agent:')) ||
+      (github.event_name == 'issue_comment' && !startsWith(github.event.comment.body, '[Agent:'))
 
     steps:
       - name: Checkout repository
