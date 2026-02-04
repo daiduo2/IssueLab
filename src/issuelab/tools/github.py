@@ -124,11 +124,11 @@ def post_comment(
 
     # 自动清理和过滤 @mentions（集中式管理的核心）
     if mentions is None and auto_clean:
-        from issuelab.mention_policy import filter_mentions
-        from issuelab.response_processor import clean_mentions_in_text, extract_mentions
+        from issuelab.mention_policy import filter_mentions, rank_mentions_by_frequency
+        from issuelab.response_processor import clean_mentions_in_text
 
         # 1. 提取所有 @mentions
-        all_mentions = extract_mentions(body)
+        all_mentions = rank_mentions_by_frequency(body)
 
         # 2. 应用策略过滤
         if all_mentions:
@@ -140,8 +140,10 @@ def post_comment(
             # 3. 清理主体内容（@ → "用户 xxx"）
             body = clean_mentions_in_text(body)
 
-            # 4. 使用过滤后的 mentions
-            mentions = allowed_mentions
+            # 4. 使用过滤后的 mentions（最多 2 个，按出现次数排序）
+            if len(allowed_mentions) > 2:
+                logger.info(f"[FILTER] 仅保留出现次数最多的 2 个 @mentions: {allowed_mentions[:2]}")
+            mentions = allowed_mentions[:2]
         else:
             mentions = []
 
