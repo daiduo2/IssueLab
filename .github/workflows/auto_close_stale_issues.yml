@@ -41,6 +41,7 @@ jobs:
 
           # 获取超过 N 回复的 open issue
           ISSUES=$(gh issue list \
+            --repo "$REPO" \
             --state open \
             --limit 300 \
             --json number,title,comments \
@@ -56,14 +57,15 @@ jobs:
           echo ""
 
           for issue_num in $ISSUES; do
-            TITLE=$(gh issue view $issue_num --json title --jq '.title')
-            COMMENTS=$(gh issue view $issue_num --json comments --jq '.comments')
+            TITLE=$(gh issue view $issue_num --repo "$REPO" --json title --jq '.title')
+            COMMENTS=$(gh issue view $issue_num --repo "$REPO" --json comments --jq '.comments')
 
             echo "  #$issue_num: $TITLE"
             echo "     回复数: $COMMENTS"
 
             if [ "$DRY_RUN" = "false" ]; then
               gh issue close $issue_num \
+                --repo "$REPO" \
                 --comment "🤖 此 issue 已超过 $MAX_COMMENTS 回复，自动关闭。如需继续讨论，请开启新 issue。"
               echo "     → 已关闭"
             else
