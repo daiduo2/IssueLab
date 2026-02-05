@@ -50,10 +50,6 @@ def _truncate_text(text: str, limit: int) -> str:
     return text[:limit]
 
 
-def _strip_mentions(text: str) -> str:
-    return re.sub(r"@([A-Za-z0-9_-]+)", r"用户 \1", text)
-
-
 def _extract_yaml_block(text: str) -> str:
     match = re.search(r"```yaml(.*?)```", text, re.DOTALL | re.IGNORECASE)
     return match.group(1).strip() if match else ""
@@ -87,7 +83,7 @@ def _normalize_agent_output(response_text: str, agent_name: str) -> tuple[str, l
             break
     if not summary_line:
         warnings.append("Summary is empty")
-    summary_line = _strip_mentions(summary_line)
+    summary_line = clean_mentions_in_text(summary_line)
     summary_line = _truncate_text(summary_line, 20)
 
     findings: list[str] = []
@@ -97,7 +93,7 @@ def _normalize_agent_output(response_text: str, agent_name: str) -> tuple[str, l
             findings.append(match.group(1).strip())
     if not findings:
         warnings.append("Key Findings missing bullets")
-    findings = [_truncate_text(_strip_mentions(item), 25) for item in findings[:3]]
+    findings = [_truncate_text(clean_mentions_in_text(item), 25) for item in findings[:3]]
     if len(findings) < 3:
         warnings.append("Key Findings fewer than 3 bullets")
 
@@ -265,8 +261,8 @@ def process_agent_response(
         logger.warning("Response format warnings for '%s': %s", agent_name, "; ".join(format_warnings))
     response_text = normalized_response
 
-    # 提取所有 @mentions
-    mentions = extract_mentions(response_text)
+    # 提取所有 @mentions（基于原始回复，避免规范化后丢失）
+    mentions = extract_mentions(raw_response_text)
 
     # 清理主体内容（将所有 @username 替换为 "用户 username"）
     clean_response = clean_mentions_in_text(response_text)
