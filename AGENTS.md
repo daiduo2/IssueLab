@@ -6,7 +6,7 @@
 - `agents/`: per-user agent configs and prompts (e.g., `agents/<name>/agent.yml`, `agents/<name>/prompt.md`).
 - `prompts/`: built-in agent prompts with YAML frontmatter.
 - `scripts/`: lightweight wrappers for GitHub Actions (minimal deps, no full install).
-- `docs/`: architecture, deployment, and setup guides.
+- `docs/`: [architecture, deployment, and setup guides](./docs/).
 - `config/`: workflow and runtime configuration assets.
 
 ## Build, Test, and Development Commands
@@ -37,5 +37,5 @@
 
 ## Security & Configuration Tips
 - Secrets should be provided via GitHub Actions (e.g., `ANTHROPIC_AUTH_TOKEN`, `PAT_TOKEN`).
-- Use GitHub App credentials where possible for cross-repo dispatch; see `docs/DEPLOYMENT.md`.
+- Use GitHub App credentials where possible for cross-repo dispatch; see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 - MCP configuration lives in `.mcp.json` (global) and `agents/<name>/.mcp.json` (per-agent overrides).

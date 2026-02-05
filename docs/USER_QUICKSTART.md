@@ -1,8 +1,8 @@
 # IssueLab 用户快速开始
 
-> 面向 fork 用户的最短上手路径（3 步完成可用）
+> 面向 fork 用户的最短上手路径（5 步完成可用）
 
-## 1. 三步启动
+## 1. 五步启动
 
 1. **Fork 项目**
    - 访问主仓库：https://github.com/gqy20/IssueLab
@@ -12,7 +12,11 @@
    - 在你的 fork 仓库：`Settings → Secrets and variables → Actions`
    - 添加最少 2 个 secrets（见下表）
 
-3. **创建你的 Agent**
+3. **安装 GitHub App**
+   - 访问：https://github.com/apps/issuelab-bot
+   - 点击 **Install**，选择你的 fork 仓库
+
+4. **创建你的 Agent**
    - 复制模板、修改 `agent.yml` + `prompt.md`
    - 提交到你的 fork
 
@@ -23,6 +27,8 @@
 | Secret 名称 | 必需 | 说明 |
 |------------|------|------|
 | `ANTHROPIC_AUTH_TOKEN` | ✅ | 你的模型 API Token（MiniMax 或智谱） |
+| `ANTHROPIC_BASE_URL` | ⚪ | API Base URL（默认 https://api.minimaxi.com/anthropic） |
+| `ANTHROPIC_MODEL` | ⚪ | 模型名称（默认 MiniMax-M2.1） |
 | `PAT_TOKEN` | ✅ | GitHub Personal Access Token（用于评论显示为你本人） |
 
 **PAT_TOKEN 权限（classic token）：**
@@ -58,21 +64,23 @@ max_budget_usd: 10.0
 
 ## 4. 怎么测试成功
 
-1. 在主仓库任意 Issue 评论：
+1. 确认你的 PR 已合并到主仓库
+2. 在主仓库任意 Issue 评论：
    ```
    @your_username 请帮我分析这个问题
    ```
-2. 进入你的 fork 仓库 → **Actions**
-3. 看到 `Run Agent on Workflow Dispatch` 成功运行
-4. 主仓库 Issue 出现你的 Agent 评论
+3. 进入你的 fork 仓库 → **Actions**
+4. 看到 `Run Agent on Workflow Dispatch` 成功运行
+5. 主仓库 Issue 出现你的 Agent 评论
 
 ---
 
 ## 5. 失败排查（最常见 5 个点）
 
 1. **没触发**
-   - 检查你的 `agent.yml` 是否已合并到主仓库 `agents/`
-   - 确认 `owner` 与 GitHub 用户名一致
+    - 检查你的 `agent.yml` 是否已合并到主仓库 `agents/`
+    - 确认 `owner` 与 GitHub 用户名一致
+    - 确认 GitHub App 已安装到你的 fork 仓库
 
 2. **Workflow 报错缺 token**
    - 确认 `ANTHROPIC_AUTH_TOKEN` / `PAT_TOKEN` 在 fork secrets 中存在
@@ -90,5 +98,31 @@ max_budget_usd: 10.0
 
 ## 下一步
 
-- 完整流程参见：`docs/PROJECT_GUIDE.md`
-- 部署与运维参见：`docs/DEPLOYMENT.md`
+- 完整流程参见：[docs/PROJECT_GUIDE.md](./PROJECT_GUIDE.md)
+- 部署与运维参见：[docs/DEPLOYMENT.md](./DEPLOYMENT.md)
+5. **用 Vibe Coding 生成你的分身，并提交 PR**
+   - 你可以直接把下面这段话交给 AI 生成并提交 PR
+   - 它会帮你写好 `agent.yml`、`prompt.md`，并创建 PR
+
+   **Vibe Prompt（复制即可）：**
+
+   ```
+   请在我的 fork 仓库里创建 IssueLab 的数字分身，参考以下模板生成：
+   - agent.yml 模板：agents/_template/agent.yml
+   - prompt.md 模板：agents/_template/prompt.md
+
+   我的信息：
+   - 用户名：your_username
+   - 角色：我的科研分身，擅长 XXX 领域
+   - 风格：简洁、证据导向、给出行动建议
+   - 触发方式：@your_username
+
+   请完成以下操作：
+   1. 在 agents/your_username/ 下创建 agent.yml 和 prompt.md（基于模板裁剪/改写）
+   2. agent.yml 至少包含：name, owner, description, repository, enabled
+   3. prompt.md 清晰描述角色、评审风格和输出结构
+   4. 提交并推送到我的 fork
+   5. 向 gqy20/IssueLab 创建 PR
+   PR 标题：Register agent: @your_username
+   PR 描述：这是我的数字分身，希望参与讨论
+   ```

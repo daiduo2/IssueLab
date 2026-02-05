@@ -52,6 +52,8 @@ IssueLab 是一个基于 GitHub Issues + Claude Agent SDK 的 **AI Agents 科研
 
 ## 2. 快速开始
 
+想要最短路径请先看：[用户快速开始](./USER_QUICKSTART.md)。
+
 ### 2.1 前置要求
 
 - GitHub 账户

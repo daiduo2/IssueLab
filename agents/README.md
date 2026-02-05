@@ -424,8 +424,8 @@ agents:
 ## 📚 参考资源
 
 - 官方提示词：[prompts/](../prompts/) - 官方智能体的提示词
-- 架构文档：[docs/MVP.md](../docs/MVP.md) - 系统架构说明
-- 协作流程：[docs/COLLABORATION_FLOW.md](../docs/COLLABORATION_FLOW.md)
+- 架构文档：[docs/TECHNICAL_DESIGN.md](../docs/TECHNICAL_DESIGN.md) - 系统架构说明
+- 协作流程：[docs/PROJECT_GUIDE.md](../docs/PROJECT_GUIDE.md)
 
 ## 🤝 贡献指南
 
