@@ -1,6 +1,7 @@
 """测试 SDK 执行器"""
 
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -188,6 +189,17 @@ class TestMcpConfigLoading:
             mock_read.side_effect = TimeoutError("timeout")
             servers = load_mcp_servers_for_agent("any", root_dir=tmp_root)
             assert servers == {}
+
+    def test_mcp_log_tools_triggers_listing(self):
+        """MCP_LOG_TOOLS=1 时应触发工具列表逻辑"""
+        clear_agent_options_cache()
+        with patch.dict(os.environ, {"MCP_LOG_TOOLS": "1"}):
+            with patch("issuelab.agents.options.load_mcp_servers_for_agent") as mock_load:
+                mock_load.return_value = {"docs": {"command": "echo", "args": ["hi"]}}
+                with patch("issuelab.agents.options._list_tools_for_mcp_server") as mock_list:
+                    mock_list.return_value = []
+                    _ = create_agent_options(agent_name="moderator")
+                    mock_list.assert_called()
 
 
 class TestEnvOptimization:
