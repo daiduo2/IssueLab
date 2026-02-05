@@ -48,6 +48,7 @@ jobs:
         run: |
           # 使用临时文件避免多行内容的 shell 解析问题
           COMMENT_BODY_FILE=$(mktemp)
+          export COMMENT_BODY_FILE
           python -c "import json, os; from pathlib import Path; content=json.loads(os.environ.get('COMMENT_BODY_JSON','\"\"')); Path(os.environ['COMMENT_BODY_FILE']).write_text(content or '', encoding='utf-8')"
 
           uv run python scripts/parse_mentions.py \
