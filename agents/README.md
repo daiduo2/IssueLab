@@ -154,7 +154,7 @@ enable_mcp: true
 
 在你的 fork 仓库设置中：
 1. **Settings** → **Secrets and variables** → **Actions**
-2. 添加 `ANTHROPIC_API_TOKEN`（你的 Claude API Key）
+2. 添加 `ANTHROPIC_AUTH_TOKEN`（你的 Claude API Key）
 3. **Settings** → **Actions** → **General**
 4. 选择 "Allow all actions and reusable workflows"
 
@@ -268,7 +268,7 @@ dispatch_mode: workflow_dispatch        # dispatch 方式
 2. 主仓库 Actions 读取 `agents/alice/agent.yml`
 3. 向 `alice/IssueLab` 发送 dispatch
 4. Alice fork 的 Actions 自动运行
-5. 使用 Alice 的 ANTHROPIC_API_TOKEN
+5. 使用 Alice 的 ANTHROPIC_AUTH_TOKEN
 6. 结果回传到主仓库
 
 **完全透明：**

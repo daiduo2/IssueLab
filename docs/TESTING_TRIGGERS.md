@@ -30,7 +30,7 @@ export GITHUB_APP_ID="your_app_id"
 export GITHUB_APP_PRIVATE_KEY="your_app_private_key"
 export PAT_TOKEN="your_pat_token"        # 必需：用于评论显示用户身份
 export GITHUB_TOKEN="your_github_token"  # 可选：用于本地 gh CLI
-export ANTHROPIC_API_KEY="your_anthropic_api_key"
+export ANTHROPIC_AUTH_TOKEN="your_anthropic_api_key"
 ```
 
 ### 3. 运行基础测试
@@ -113,9 +113,8 @@ for t in tests:
 - `@reviewer_a`
 - `@reviewer_b`
 - `@summarizer`
-| `reviewer` / `reviewera` / `reva` | `reviewer_a` |
-| `reviewerb` / `reviewer_b` / `revb` | `reviewer_b` |
-| `summary` | `summarizer` |
+
+注意：当前不支持别名映射（仅支持真名）。
 
 ---
 

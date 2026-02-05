@@ -109,8 +109,8 @@ MCP tools can be configured globally or per-agent:
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `ANTHROPIC_API_TOKEN` | Anthropic API | Required |
-| `ANTHROPIC_AUTH_TOKEN` | Anthropic API (fallback) | - |
+| `ANTHROPIC_API_TOKEN` | Anthropic API (takes precedence if set) | - |
+| `ANTHROPIC_AUTH_TOKEN` | Anthropic API (used by workflows) | Required |
 | `GITHUB_TOKEN` / `GH_TOKEN` | GitHub auth (GH_TOKEN priority) | Required |
 | `ANTHROPIC_MODEL` | Model name | MiniMax-M2.1 |
 | `ANTHROPIC_BASE_URL` | API proxy URL | https://api.minimaxi.com/anthropic |
@@ -133,10 +133,10 @@ SCENE_CONFIGS = {
 Cross-repository agent dispatch via GitHub App:
 - **Registry:** `agents/<username>/agent.yml` maps users to forks
 - **Dispatch:** `repository_dispatch` or `workflow_dispatch`
-- **DISPATCH_TOKEN:** Fine-grained PAT for triggering user forks
+- **PAT_TOKEN:** Fine-grained PAT for triggering user forks
 
 **User fork requirements:**
-- `ANTHROPIC_API_TOKEN` in fork secrets
+- `ANTHROPIC_AUTH_TOKEN` in fork secrets
 - `.github/workflows/user_agent.yml`
 - `agents/<username>/agent.yml`
 - `agents/<username>/prompt.md`

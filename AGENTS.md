@@ -36,6 +36,6 @@
 - Keep PRs focused and avoid mixing unrelated refactors with feature work.
 
 ## Security & Configuration Tips
-- Secrets should be provided via GitHub Actions (e.g., `ANTHROPIC_API_TOKEN`, `GITHUB_TOKEN`).
+- Secrets should be provided via GitHub Actions (e.g., `ANTHROPIC_AUTH_TOKEN`, `PAT_TOKEN`).
 - Use GitHub App credentials where possible for cross-repo dispatch; see `docs/GITHUB_APP_SETUP.md`.
 - MCP configuration lives in `.mcp.json` (global) and `agents/<name>/.mcp.json` (per-agent overrides).
