@@ -1,5 +1,8 @@
 """测试 __main__ 模块功能"""
 
+import os
+from unittest.mock import MagicMock, patch
+
 from issuelab.tools.github import MAX_COMMENT_LENGTH, truncate_text
 
 
@@ -51,3 +54,33 @@ class TestTruncateText:
         assert len(result) <= 1000
         # 验证结果仍然是有效的字符串
         assert isinstance(result, str)
+
+
+class TestMainTriggerComment:
+    """测试 trigger comment 环境变量处理"""
+
+    def test_execute_reads_trigger_comment_env(self, monkeypatch):
+        """execute 命令应读取 ISSUELAB_TRIGGER_COMMENT"""
+        from issuelab import __main__ as main_mod
+
+        monkeypatch.setenv("ISSUELAB_TRIGGER_COMMENT", "@agent please focus on this")
+        monkeypatch.setattr(main_mod, "get_issue_info", lambda *a, **k: {"title": "t", "body": "b", "comments": "", "comment_count": 0})
+
+        with patch("issuelab.tools.github.write_issue_context_file", lambda *a, **k: "/tmp/issue_1.md"):
+            captured = {}
+
+            async def _fake_run(issue, agents, context, comment_count, available_agents=None, trigger_comment=None):
+                captured["trigger_comment"] = trigger_comment
+                return {}
+
+            monkeypatch.setattr(main_mod, "run_agents_parallel", _fake_run)
+            monkeypatch.setattr(main_mod, "parse_agents_arg", lambda s: ["gqy20"])
+
+            monkeypatch.setenv("PYTHONPATH", "src")
+            monkeypatch.setattr(os, "environ", os.environ)
+            monkeypatch.setattr(main_mod, "post_comment", lambda *a, **k: True)
+
+            with patch("sys.argv", ["issuelab", "execute", "--issue", "1", "--agents", "gqy20"]):
+                main_mod.main()
+
+            assert captured.get("trigger_comment") == "@agent please focus on this"

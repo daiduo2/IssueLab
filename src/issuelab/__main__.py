@@ -383,8 +383,6 @@ def main():
 
     elif args.command == "personal-reply":
         # 个人Agent回复主仓库issue
-        import os
-
         import yaml
 
         # 读取agent配置
