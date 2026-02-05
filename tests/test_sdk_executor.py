@@ -452,3 +452,33 @@ class TestStreamingOutput:
             await run_single_agent("test prompt", "test_agent")
             # 验证工具结果内容没有被完整输出（避免刷屏）
             assert not any("Very long result" in str(call) for call in mock_print.call_args_list)
+
+    @pytest.mark.asyncio
+    async def test_result_message_usage_tokens_exposed(self):
+        """ResultMessage usage 应该写入执行结果"""
+        from claude_agent_sdk import AssistantMessage, ResultMessage
+        from claude_agent_sdk.types import TextBlock
+
+        from issuelab.agents.executor import run_single_agent
+
+        async def mock_query(*args, **kwargs):
+            msg = MagicMock(spec=AssistantMessage)
+            msg.content = [TextBlock(text="ok")]
+            yield msg
+
+            result = MagicMock(spec=ResultMessage)
+            result.total_cost_usd = 0.01
+            result.num_turns = 1
+            result.session_id = "test-session"
+            result.usage = {
+                "input_tokens": 123,
+                "output_tokens": 45,
+                "total_tokens": 168,
+            }
+            yield result
+
+        with patch("issuelab.agents.executor.query", mock_query):
+            info = await run_single_agent("test prompt", "test_agent")
+            assert info["input_tokens"] == 123
+            assert info["output_tokens"] == 45
+            assert info["total_tokens"] == 168
