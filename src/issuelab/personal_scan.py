@@ -13,6 +13,7 @@ import subprocess
 from typing import Any
 
 from issuelab.agents.executor import run_single_agent_text
+from issuelab.tools.github import get_issue_info
 logger = logging.getLogger(__name__)
 
 # LLM智能扫描开关
@@ -31,13 +32,7 @@ def get_issue_content(issue_number: int, repo: str) -> dict[str, Any] | None:
         Issue数据或None
     """
     try:
-        result = subprocess.run(
-            ["gh", "issue", "view", str(issue_number), "--repo", repo, "--json", "title,body,labels,comments"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return json.loads(result.stdout)
+        return get_issue_info(issue_number, format_comments=False, repo=repo)
     except Exception as e:
         logger.error(f"[ERROR] 获取Issue #{issue_number}失败: {e}")
         return None

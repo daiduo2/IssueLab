@@ -123,14 +123,12 @@ class TestSelectTopIssues:
 class TestGetIssueContent:
     """测试获取issue内容"""
 
-    @patch("subprocess.run")
+    @patch("issuelab.personal_scan.get_issue_info")
     def test_get_issue_content_success(self, mock_run):
         """成功获取issue内容"""
         from issuelab.personal_scan import get_issue_content
 
-        mock_run.return_value = Mock(
-            returncode=0, stdout='{"title": "Test", "body": "Content", "labels": [], "comments": []}'
-        )
+        mock_run.return_value = {"title": "Test", "body": "Content", "labels": [], "comments": []}
 
         result = get_issue_content(1, "owner/repo")
 
@@ -138,7 +136,7 @@ class TestGetIssueContent:
         assert result["title"] == "Test"
         assert result["body"] == "Content"
 
-    @patch("subprocess.run")
+    @patch("issuelab.personal_scan.get_issue_info")
     def test_get_issue_content_failure(self, mock_run):
         """获取issue内容失败"""
         from issuelab.personal_scan import get_issue_content

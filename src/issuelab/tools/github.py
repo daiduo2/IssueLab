@@ -17,7 +17,7 @@ MAX_COMMENT_LENGTH = 10000
 
 
 @retry_sync(max_retries=3, initial_delay=1.0, backoff_factor=2.0)
-def get_issue_info(issue_number: int, format_comments: bool = False) -> dict:
+def get_issue_info(issue_number: int, format_comments: bool = False, repo: str | None = None) -> dict:
     """获取 Issue 信息（带重试机制）
 
     Args:
@@ -31,8 +31,11 @@ def get_issue_info(issue_number: int, format_comments: bool = False) -> dict:
     logger.debug(f"获取 Issue #{issue_number} 信息")
     env = Config.prepare_github_env()
 
+    cmd = ["gh", "issue", "view", str(issue_number), "--json", "number,title,body,labels,comments"]
+    if repo:
+        cmd.extend(["--repo", repo])
     result = subprocess.run(
-        ["gh", "issue", "view", str(issue_number), "--json", "number,title,body,labels,comments"],
+        cmd,
         capture_output=True,
         text=True,
         env=env,
