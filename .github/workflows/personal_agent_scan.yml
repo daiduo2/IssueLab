@@ -4,8 +4,8 @@ name: Personal Agent Scan
 # 定期分析主仓库的issues，选择感兴趣的话题参与讨论
 on:
   schedule:
-    # 每6小时运行一次（避免过于频繁）
-    - cron: '0 */6 * * *'
+    # 每20分钟运行一次
+    - cron: '*/20 * * * *'
   workflow_dispatch:  # 允许手动触发
     inputs:
       max_issues:
