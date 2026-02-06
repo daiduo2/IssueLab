@@ -6,7 +6,6 @@
 """
 
 import asyncio
-import json
 import logging
 import re
 import subprocess
@@ -161,66 +160,64 @@ async def llm_select_issues_async(
 ## 候选Issues ({len(issues_data)}个)
 {issues_text}
 
-## 输出要求（必须严格遵守）
-- 只输出**一行**JSON文本，**不要**使用markdown代码块
-- **禁止**YAML、禁止多段落、禁止多余解释文本
-- JSON必须可被`json.loads`直接解析
+## Output Format (required)
+请严格输出以下 YAML（仅输出一个 YAML 代码块，不要附加解释）：
 
-示例（仅格式示意）：
-{{"selected_issues": [21], "selections": [{{"issue_number": 21, "priority": 9, "reason": "原因"}}], "reasoning": "说明"}}
+```yaml
+selected_issues:
+  - 21
+selections:
+  - issue_number: 21
+    priority: 9
+    reason: "原因"
+reasoning: "说明"
+```
 
-选择标准：主题相关、价值匹配、能提供独特见解。现在开始输出JSON："""
+选择标准：主题相关、价值匹配、能提供独特见解。现在开始输出："""
 
     # 调用智能体
     logger.info("[LLM] 调用智能体分析...")
     response_text = await run_single_agent_text(prompt, agent_name=agent_name or "personal_scan")
 
-    # 解析JSON（优先）或YAML（兜底）
-    text = re.sub(r"```(?:json|yaml)?\s*", "", response_text)  # 去除markdown
-    text = re.sub(r"\s*```", "", text).strip()
-
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        try:
-            result = json.loads(match.group(0))
-            logger.info(f"[LLM] 选择了 {len(result.get('selected_issues', []))} 个Issue")
-            return result
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON解析错误: {e}，尝试解析YAML")
+    # 解析YAML（统一输出格式）
+    match = re.search(r"```yaml(.*?)```", response_text, re.DOTALL | re.IGNORECASE)
+    yaml_text = match.group(1).strip() if match else response_text.strip()
 
     try:
-        parsed = yaml.safe_load(text)
-        if isinstance(parsed, dict):
-            logger.info(f"[LLM] 选择了 {len(parsed.get('selected_issues', []))} 个Issue (YAML)")
-            return parsed
-        logger.error(f"YAML解析结果非对象: {type(parsed)}")
-        return {"selected_issues": [], "selections": [], "reasoning": "解析失败"}
+        parsed = yaml.safe_load(yaml_text)
+        if not isinstance(parsed, dict):
+            logger.error(f"YAML解析结果非对象: {type(parsed)}")
+            return {"selected_issues": [], "selections": [], "reasoning": "解析失败"}
     except yaml.YAMLError as e:
-        logger.error(f"YAML解析错误: {e}，尝试二次修复为严格JSON")
+        logger.error(f"YAML解析错误: {e}")
+        return {"selected_issues": [], "selections": [], "reasoning": f"错误: {e}"}
 
-    # 二次修复：让模型把原始输出转成严格JSON
-    repair_prompt = f"""请将下面的内容转换为严格JSON（仅一行），必须可被 json.loads 直接解析。
-禁止 markdown、禁止 YAML、禁止多余解释。仅输出JSON。
+    selected = parsed.get("selected_issues", [])
+    selections = parsed.get("selections", [])
+    reasoning = parsed.get("reasoning", "")
 
-目标格式：
-{{"selected_issues": [21], "selections": [{{"issue_number": 21, "priority": 9, "reason": "原因"}}], "reasoning": "说明"}}
-
-原始内容：
-{response_text}
-"""
-    repaired_text = await run_single_agent_text(repair_prompt, agent_name=agent_name or "personal_scan")
-    repaired_text = re.sub(r"```(?:json)?\s*", "", repaired_text)
-    repaired_text = re.sub(r"\s*```", "", repaired_text).strip()
-    match = re.search(r"\{.*\}", repaired_text, re.DOTALL)
-    if match:
+    # 规范化字段
+    if isinstance(selections, list) and not selected:
+        selected = [item.get("issue_number") for item in selections if isinstance(item, dict)]
+    if not isinstance(selected, list):
+        selected = []
+    selected_numbers = []
+    for item in selected:
         try:
-            result = json.loads(match.group(0))
-            logger.info(f"[LLM] 修复后选择了 {len(result.get('selected_issues', []))} 个Issue")
-            return result
-        except json.JSONDecodeError as e:
-            logger.error(f"修复后的JSON解析错误: {e}")
+            selected_numbers.append(int(item))
+        except (TypeError, ValueError):
+            continue
 
-    return {"selected_issues": [], "selections": [], "reasoning": "解析失败"}
+    if not isinstance(selections, list):
+        selections = []
+
+    result = {
+        "selected_issues": selected_numbers,
+        "selections": selections,
+        "reasoning": reasoning if isinstance(reasoning, str) else str(reasoning),
+    }
+    logger.info(f"[LLM] 选择了 {len(result.get('selected_issues', []))} 个Issue (YAML)")
+    return result
 
 
 def llm_select_issues(
