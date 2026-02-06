@@ -15,7 +15,7 @@ sections:
   structured: "## Structured (YAML)"
 
 limits:
-  summary_max_chars: 160
+  summary_max_chars: 400
   findings_count: 5
   findings_max_chars: 160
   actions_max_count: 3
