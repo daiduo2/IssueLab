@@ -22,10 +22,13 @@ from claude_agent_sdk import (
 
 from issuelab.agents.config import AgentConfig
 from issuelab.agents.options import create_agent_options, format_mcp_servers_for_prompt
+from issuelab.agents.registry import BUILTIN_AGENTS
 from issuelab.logging_config import get_logger
 from issuelab.retry import retry_async
 
 logger = get_logger(__name__)
+
+_BUILTIN_EXECUTION_TIMEOUT_SECONDS = 600
 
 _OUTPUT_SCHEMA_BLOCK = (
     "\n\n## Output Format (required)\n"
@@ -201,6 +204,8 @@ async def run_single_agent(prompt: str, agent_name: str) -> dict:
                 return value if value > 0 else None
             except (TypeError, ValueError):
                 return None
+        if agent_name in BUILTIN_AGENTS:
+            return _BUILTIN_EXECUTION_TIMEOUT_SECONDS
         return AgentConfig().timeout_seconds
 
     try:

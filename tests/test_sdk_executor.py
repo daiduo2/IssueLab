@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -637,3 +638,63 @@ class TestStreamingOutput:
             await run_single_agent("test prompt", "test_agent")
 
         assert "## Output Format (required)" in captured["prompt"]
+
+    @pytest.mark.asyncio
+    async def test_builtin_agent_timeout_defaults_to_600(self):
+        """内置系统 agent 在无显式配置时应使用 600s 超时"""
+        from claude_agent_sdk import ResultMessage
+
+        from issuelab.agents.executor import run_single_agent
+
+        captured_timeout: dict[str, int] = {}
+
+        @contextmanager
+        def fake_fail_after(seconds):
+            captured_timeout["value"] = int(seconds)
+            yield
+
+        async def mock_query(*args, **kwargs):
+            result = MagicMock(spec=ResultMessage)
+            result.total_cost_usd = 0.0
+            result.num_turns = 1
+            result.session_id = "session"
+            yield result
+
+        with (
+            patch("issuelab.agents.executor.query", mock_query),
+            patch("issuelab.agents.executor.anyio.fail_after", fake_fail_after),
+            patch("issuelab.agents.registry.get_agent_config", return_value=None),
+        ):
+            await run_single_agent("test prompt", "moderator")
+
+        assert captured_timeout["value"] == 600
+
+    @pytest.mark.asyncio
+    async def test_video_manim_timeout_uses_agent_override_900(self):
+        """video_manim 应优先使用 agent.yml 配置超时 900s"""
+        from claude_agent_sdk import ResultMessage
+
+        from issuelab.agents.executor import run_single_agent
+
+        captured_timeout: dict[str, int] = {}
+
+        @contextmanager
+        def fake_fail_after(seconds):
+            captured_timeout["value"] = int(seconds)
+            yield
+
+        async def mock_query(*args, **kwargs):
+            result = MagicMock(spec=ResultMessage)
+            result.total_cost_usd = 0.0
+            result.num_turns = 1
+            result.session_id = "session"
+            yield result
+
+        with (
+            patch("issuelab.agents.executor.query", mock_query),
+            patch("issuelab.agents.executor.anyio.fail_after", fake_fail_after),
+            patch("issuelab.agents.registry.get_agent_config", return_value={"timeout_seconds": 900}),
+        ):
+            await run_single_agent("test prompt", "video_manim")
+
+        assert captured_timeout["value"] == 900
