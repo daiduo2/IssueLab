@@ -43,8 +43,6 @@ htmlcov/
 # uv
 .uv/
 
-.tmp/
-
 # Package/build output
 package/
 
