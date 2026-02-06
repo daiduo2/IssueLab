@@ -61,6 +61,29 @@ _DEFAULT_FORMAT_RULES = {
 _FORMAT_RULES_CACHE: dict[str, Any] | None = None
 
 
+def _find_marker(response_text: str, candidates: list[str], canonical: str) -> tuple[int, str]:
+    """Return the earliest matched marker and its text."""
+    best_pos = -1
+    best_marker = canonical
+    for marker in candidates:
+        pos = response_text.find(marker)
+        if pos == -1:
+            continue
+        if best_pos == -1 or pos < best_pos:
+            best_pos = pos
+            best_marker = marker
+    return best_pos, best_marker
+
+
+def _remove_last_yaml_fence(text: str) -> str:
+    """Remove the last ```yaml fenced block from text."""
+    matches = list(re.finditer(r"```yaml[\s\S]*?```", text, re.IGNORECASE))
+    if not matches:
+        return text
+    start, end = matches[-1].span()
+    return text[:start] + text[end:]
+
+
 def _load_format_rules() -> dict[str, Any]:
     global _FORMAT_RULES_CACHE
     if _FORMAT_RULES_CACHE is not None:
@@ -144,6 +167,8 @@ def _normalize_agent_output(response_text: str, agent_name: str | None) -> tuple
     findings_marker = sections["findings"]
     actions_marker = sections["actions"]
     yaml_marker = sections["structured"]
+    actions_aliases = [actions_marker, "## Recommendations"]
+    yaml_aliases = [yaml_marker, "## Confidence"]
 
     # Render YAML-only responses into markdown for user-facing agents.
     if summary_marker not in response_text:
@@ -195,8 +220,23 @@ def _normalize_agent_output(response_text: str, agent_name: str | None) -> tuple
     if not force_normalize and summary_marker not in response_text:
         return response_text, warnings
 
-    markers = [summary_marker, findings_marker, actions_marker, yaml_marker]
-    positions = {marker: response_text.find(marker) for marker in markers}
+    summary_pos, summary_used = _find_marker(response_text, [summary_marker], summary_marker)
+    findings_pos, findings_used = _find_marker(response_text, [findings_marker], findings_marker)
+    actions_pos, actions_used = _find_marker(response_text, actions_aliases, actions_marker)
+    yaml_pos, yaml_used = _find_marker(response_text, yaml_aliases, yaml_marker)
+
+    positions = {
+        summary_marker: summary_pos,
+        findings_marker: findings_pos,
+        actions_marker: actions_pos,
+        yaml_marker: yaml_pos,
+    }
+    used_markers = {
+        summary_marker: summary_used,
+        findings_marker: findings_used,
+        actions_marker: actions_used,
+        yaml_marker: yaml_used,
+    }
     missing = [marker for marker, pos in positions.items() if pos == -1]
     if missing:
         warnings.append(f"Missing sections: {', '.join(missing)}")
@@ -204,19 +244,21 @@ def _normalize_agent_output(response_text: str, agent_name: str | None) -> tuple
             return response_text, warnings
 
     summary_block = response_text[
-        positions.get(summary_marker, 0) + len(summary_marker) : positions.get(findings_marker, len(response_text))
+        positions.get(summary_marker, 0) + len(used_markers.get(summary_marker, summary_marker)) : positions.get(
+            findings_marker, len(response_text)
+        )
     ].strip()
     findings_block = response_text[
-        positions.get(findings_marker, len(response_text)) + len(findings_marker) : positions.get(
-            actions_marker, len(response_text)
-        )
+        positions.get(findings_marker, len(response_text))
+        + len(used_markers.get(findings_marker, findings_marker)) : positions.get(actions_marker, len(response_text))
     ].strip()
     actions_block = response_text[
-        positions.get(actions_marker, len(response_text)) + len(actions_marker) : positions.get(
-            yaml_marker, len(response_text)
-        )
+        positions.get(actions_marker, len(response_text))
+        + len(used_markers.get(actions_marker, actions_marker)) : positions.get(yaml_marker, len(response_text))
     ].strip()
-    yaml_block = response_text[positions.get(yaml_marker, len(response_text)) + len(yaml_marker) :].strip()
+    yaml_block = response_text[
+        positions.get(yaml_marker, len(response_text)) + len(used_markers.get(yaml_marker, yaml_marker)) :
+    ].strip()
 
     summary_line = ""
     for line in summary_block.splitlines():
@@ -337,6 +379,8 @@ def normalize_comment_body(body: str, agent_name: str | None = None) -> str:
     if yaml_marker in normalized:
         head, _sep, _tail = normalized.partition(yaml_marker)
         normalized = head.rstrip() + "\n"
+    else:
+        normalized = _remove_last_yaml_fence(normalized)
     normalized = re.sub(r"\n{3,}", "\n\n", normalized).strip() + "\n"
     return normalized
 

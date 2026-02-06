@@ -276,3 +276,98 @@ confidence: "high"
         assert result["mentions"] == []
         assert result["dispatch_results"] == {}
         mock_trigger.assert_not_called()
+
+
+class TestNormalizeCommentBody:
+    """测试评论正文规范化"""
+
+    def test_normalize_alias_recommendations_confidence(self):
+        from issuelab.response_processor import normalize_comment_body
+
+        body = """[Agent: gqy20]
+
+## Summary
+Alias format summary.
+
+## Key Findings
+- Finding A
+
+## Recommendations
+- Action A
+
+## Confidence
+```yaml
+summary: "Alias format summary."
+findings:
+  - "Finding A"
+recommendations:
+  - "Action A"
+confidence: "medium"
+```
+"""
+        normalized = normalize_comment_body(body, agent_name="gqy20")
+
+        assert "## Recommended Actions" in normalized
+        assert "## Recommendations" not in normalized
+        assert "## Confidence" not in normalized
+        assert "```yaml" not in normalized
+
+    def test_strip_yaml_without_structured_heading(self):
+        from issuelab.response_processor import normalize_comment_body
+
+        body = """[Agent: moderator]
+
+## Summary
+Summary line.
+
+## Key Findings
+- A
+
+## Recommended Actions
+- [ ] Do X
+
+```yaml
+summary: "Summary line."
+findings:
+  - "A"
+recommendations:
+  - "Do X"
+confidence: "high"
+```
+"""
+        normalized = normalize_comment_body(body, agent_name="moderator")
+        assert "```yaml" not in normalized
+        assert "## Summary" in normalized
+        assert "## Key Findings" in normalized
+        assert "## Recommended Actions" in normalized
+
+    def test_standard_structured_heading_still_works(self):
+        from issuelab.response_processor import normalize_comment_body
+
+        body = """[Agent: reviewer_a]
+
+## Summary
+Standard summary.
+
+## Key Findings
+- A
+
+## Recommended Actions
+- [ ] Do X
+
+## Structured (YAML)
+```yaml
+summary: "Standard summary."
+findings:
+  - "A"
+recommendations:
+  - "Do X"
+confidence: "high"
+```
+"""
+        normalized = normalize_comment_body(body, agent_name="reviewer_a")
+        assert "## Structured (YAML)" not in normalized
+        assert "```yaml" not in normalized
+        assert "## Summary" in normalized
+        assert "## Key Findings" in normalized
+        assert "## Recommended Actions" in normalized
