@@ -45,7 +45,7 @@ description: "我的科研分身，主轴是智能体系统设计与开发，同
 enabled: true
 max_turns: 200
 max_budget_usd: 20.00
-timeout_seconds: 420
+timeout_seconds: 900
 
 # 功能开关
 enable_skills: true
