@@ -58,12 +58,12 @@ jobs:
         run: |
           LAST_SCAN=$(gh api -X GET "repos/${{ github.repository }}/actions/variables/ARXIV_LAST_SCAN" --jq '.value' 2>/dev/null || true)
 
-          if [ -n "$LAST_SCAN" ]; then
+          if [[ "$LAST_SCAN" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
             echo "Using persisted ARXIV_LAST_SCAN: $LAST_SCAN"
             echo "last_scan=$LAST_SCAN" >> $GITHUB_OUTPUT
           else
             LAST_SCAN=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
-            echo "ARXIV_LAST_SCAN not found, fallback to: $LAST_SCAN"
+            echo "ARXIV_LAST_SCAN invalid/not found, fallback to: $LAST_SCAN"
             echo "last_scan=$LAST_SCAN" >> $GITHUB_OUTPUT
           fi
 
