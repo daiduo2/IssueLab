@@ -69,6 +69,8 @@ jobs:
 
       - name: Fetch, analyze & create issues
         run: |
+          set -euo pipefail
+          mkdir -p artifacts/observability
           echo "🔍 扫描 arXiv 新论文..."
           echo "📥 获取 ${{ env.FETCH_PAPERS }} 篇候选论文供分析"
           echo ""
@@ -79,7 +81,10 @@ jobs:
             --categories "${{ env.CATEGORIES }}" \
             --max-papers ${{ env.FETCH_PAPERS }} \
             --max-recommended ${{ env.MAX_RECOMMENDED }} \
-            --last-scan "${{ steps.last_scan.outputs.last_scan }}"
+            --last-scan "${{ steps.last_scan.outputs.last_scan }}" \
+            --output artifacts/arxiv_candidates.json \
+            --metrics-output artifacts/observability/arxiv_metrics.json \
+            2>&1 | tee artifacts/observability/arxiv_monitor.log
 
       - name: Update last scan time
         run: |
@@ -96,3 +101,94 @@ jobs:
               -f value="$NOW" >/dev/null
             echo "Created ARXIV_LAST_SCAN"
           fi
+
+      - name: Emit observability summary
+        if: always()
+        env:
+          WF_NAME: ${{ github.workflow }}
+          JOB_NAME: monitor
+          RUN_ID: ${{ github.run_id }}
+          REPO_NAME: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/observability
+
+          python - << 'PY'
+          import json
+          import os
+          from datetime import UTC, datetime
+          from pathlib import Path
+
+          metrics_path = Path("artifacts/observability/arxiv_metrics.json")
+          m = {}
+          if metrics_path.exists():
+            try:
+              m = json.loads(metrics_path.read_text(encoding="utf-8"))
+            except Exception:
+              m = {}
+
+          input_count = int(m.get("fetched_count", 0) or 0)
+          success_count = int(m.get("created_issues", 0) or 0)
+          failed_count = 0
+          skipped_count = 0
+          status_raw = str(m.get("status", ""))
+          failures = []
+          if status_raw in {"no_recommendation", "insufficient_candidates", "no_new_after_dedupe", "no_new_papers"}:
+            skipped_count = 1
+          if status_raw == "started":
+            failures.append({"code": "METRICS_MISSING", "count": 1, "samples": []})
+
+          status = "success"
+          if failures:
+            status = "partial"
+          elif skipped_count > 0 and success_count == 0:
+            status = "skipped"
+
+          payload = {
+            "schema_version": "v1",
+            "workflow": os.getenv("WF_NAME"),
+            "job": os.getenv("JOB_NAME"),
+            "run_id": os.getenv("RUN_ID"),
+            "repo": os.getenv("REPO_NAME"),
+            "sha": os.getenv("SHA"),
+            "finished_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "metrics": {
+              "input_count": input_count,
+              "success_count": success_count,
+              "failed_count": failed_count,
+              "skipped_count": skipped_count,
+              "new_papers_count": int(m.get("new_papers_count", 0) or 0),
+              "recommended_count": int(m.get("recommended_count", 0) or 0),
+              "created_issues": int(m.get("created_issues", 0) or 0),
+            },
+            "failures_topn": failures[:5],
+            "status": status,
+          }
+
+          Path("artifacts/observability/arxiv_monitor__monitor.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+
+          summary = [
+            "## Observability (arxiv monitor)",
+            "",
+            "| metric | value |",
+            "|---|---:|",
+            f"| input_count | {payload['metrics']['input_count']} |",
+            f"| new_papers_count | {payload['metrics']['new_papers_count']} |",
+            f"| recommended_count | {payload['metrics']['recommended_count']} |",
+            f"| created_issues | {payload['metrics']['created_issues']} |",
+            f"| status | {payload['status']} |",
+          ]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+            fh.write("\n".join(summary) + "\n")
+          PY
+
+      - name: Upload observability artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arxiv-monitor-observability-${{ github.run_id }}
+          path: artifacts/observability/
+          retention-days: 14
