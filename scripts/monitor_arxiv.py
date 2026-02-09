@@ -147,6 +147,13 @@ def build_papers_for_observer(papers: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _normalize_title_for_compare(title: str) -> str:
+    lowered = title.lower().strip()
+    lowered = re.sub(r"^\[论文讨论\]\s*", "", lowered)
+    lowered = re.sub(r"\s+", " ", lowered)
+    return lowered
+
+
 def filter_existing_papers(papers: list[dict], repo_name: str, token: str) -> list[dict]:
     """过滤掉已存在 Issue 的论文
 
@@ -164,14 +171,24 @@ def filter_existing_papers(papers: list[dict], repo_name: str, token: str) -> li
     g = Github(token)
     repo = g.get_repo(repo_name)
 
-    # 获取已存在的 Issue 标题
-    existing_titles = {issue.title for issue in repo.get_issues(state="all")}
+    # 获取已存在的 Issue 标题 + 正文中的 arXiv ID（更稳健，避免仅按标题导致重复）
+    existing_titles_normalized: set[str] = set()
+    existing_arxiv_ids: set[str] = set()
+    arxiv_id_pattern = re.compile(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)", re.IGNORECASE)
+
+    for issue in repo.get_issues(state="all"):
+        existing_titles_normalized.add(_normalize_title_for_compare(issue.title))
+        body = issue.body or ""
+        for match in arxiv_id_pattern.findall(body):
+            existing_arxiv_ids.add(match.lower())
 
     # 过滤
     filtered = []
     for paper in papers:
         title = f"[论文讨论] {paper['title']}"
-        if title in existing_titles:
+        title_key = _normalize_title_for_compare(title)
+        paper_id = str(paper.get("id", "")).lower()
+        if title_key in existing_titles_normalized or paper_id in existing_arxiv_ids:
             logger.debug(f"跳过已存在: {title[:50]}...")
         else:
             filtered.append(paper)
@@ -307,7 +324,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="arXiv Monitor - 智能获取并分析论文")
     parser.add_argument("--token", type=str, help="GitHub Token")
     parser.add_argument("--repo", type=str, help="Repository (owner/repo)")
-    parser.add_argument("--categories", type=str, default="cs.AI,cs.LG,cs.CL")
+    parser.add_argument("--categories", type=str, default="cs.AI,cs.LG,cs.CL,cs.CV,cs.RO,cs.IR,cs.NE,stat.ML")
     parser.add_argument("--max-papers", type=int, default=10, help="获取论文数量（分析前）")
     parser.add_argument("--max-recommended", type=int, default=2, help="最多推荐论文数量")
     parser.add_argument("--output", type=str, help="Output JSON file (optional)")
