@@ -33,7 +33,7 @@ _BUILTIN_EXECUTION_TIMEOUT_SECONDS = 600
 
 _OUTPUT_SCHEMA_BLOCK = (
     "\n\n## Output Format (required)\n"
-    "请严格输出以下 YAML：\n\n"
+    "优先输出以下 YAML；若无法稳定产出 YAML，可降级为结构化 Markdown（Summary/Findings/Recommendations）：\n\n"
     "```yaml\n"
     'summary: ""\n'
     "findings:\n"
@@ -447,6 +447,13 @@ async def _run_gqy20_multistage(agent_prompt: str, issue_number: int, task_conte
             "stages": stages,
         }
 
+    def _dedupe_tools() -> list[str]:
+        unique_tools: list[str] = []
+        for tool in tool_calls:
+            if tool not in unique_tools:
+                unique_tools.append(tool)
+        return unique_tools
+
     async def _run_stage(stage_name: str, task: str) -> dict[str, Any]:
         nonlocal total_cost, total_turns, total_input_tokens, total_output_tokens, total_tokens
         stage_prompt = f"""{agent_prompt}
@@ -520,6 +527,63 @@ confidence: "low|medium|high"
 """
     research_stage = await _run_stage("Researcher", researcher_task)
     if not research_stage["ok"]:
+        # 放宽门禁：Researcher 结构化输出不合格时，降级为单阶段回答而非直接失败。
+        if str(research_stage.get("error_type") or "") == "invalid_output":
+            logger.warning("[gqy20] Researcher 输出结构不完整，降级为单阶段回复: %s", research_stage["error_message"])
+            fallback_prompt = f"""{agent_prompt}
+
+---
+
+## 当前任务
+你需要分析 GitHub Issue #{issue_number}：
+
+{task_context}
+
+---
+
+降级策略（重要）：
+- 当前多阶段证据收集未满足结构化门槛，请直接给出可发布答复
+- 请在开头明确标注：证据不足，基于有限信息
+- 优先使用 YAML 输出；若无法稳定输出 YAML，可使用 Markdown 三段式：
+  - ## Summary
+  - ## Key Findings
+  - ## Recommended Actions
+- 若涉及事实，请尽量给出可追溯链接；无法核验时明确说明不确定性
+"""
+            fallback_result = await run_single_agent(fallback_prompt, "gqy20", stage_name="FallbackSingleStage")
+            total_cost += float(fallback_result.get("cost_usd", 0.0))
+            total_turns += int(fallback_result.get("num_turns", 0))
+            total_input_tokens += int(fallback_result.get("input_tokens", 0))
+            total_output_tokens += int(fallback_result.get("output_tokens", 0))
+            total_tokens += int(fallback_result.get("total_tokens", 0))
+            stage_tools = fallback_result.get("tool_calls", [])
+            if isinstance(stage_tools, list):
+                tool_calls.extend(str(t) for t in stage_tools)
+            fallback_text = str(fallback_result.get("response", "")).strip()
+            if fallback_text and "证据不足" not in fallback_text:
+                fallback_text = "证据不足，基于有限信息。\n\n" + fallback_text
+            stages["FallbackSingleStage"] = fallback_text
+
+            if not bool(fallback_result.get("ok", True)):
+                return _build_failure_result(
+                    "FallbackSingleStage",
+                    str(fallback_result.get("error_type") or "unknown"),
+                    str(fallback_result.get("error_message") or "FallbackSingleStage 阶段失败"),
+                )
+
+            return {
+                "ok": True,
+                "error_type": None,
+                "error_message": None,
+                "response": fallback_text,
+                "cost_usd": total_cost,
+                "num_turns": total_turns,
+                "tool_calls": _dedupe_tools(),
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+                "total_tokens": total_tokens,
+                "stages": stages,
+            }
         return _build_failure_result(
             "Researcher",
             str(research_stage.get("error_type") or "unknown"),
@@ -717,11 +781,6 @@ confidence: "low|medium|high"
             if isinstance(stage_tools, list):
                 tool_calls.extend(str(t) for t in stage_tools)
 
-    unique_tools: list[str] = []
-    for tool in tool_calls:
-        if tool not in unique_tools:
-            unique_tools.append(tool)
-
     return {
         "ok": True,
         "error_type": None,
@@ -729,7 +788,7 @@ confidence: "low|medium|high"
         "response": judge_text,
         "cost_usd": total_cost,
         "num_turns": total_turns,
-        "tool_calls": unique_tools,
+        "tool_calls": _dedupe_tools(),
         "input_tokens": total_input_tokens,
         "output_tokens": total_output_tokens,
         "total_tokens": total_tokens,

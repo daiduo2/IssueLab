@@ -77,6 +77,14 @@ def _build_failure_comment(agent_name: str, result: dict) -> str:
     )
 
 
+def _should_post_failure_comment() -> bool:
+    """是否将系统失败详情发布到 Issue。
+
+    默认关闭，避免在讨论区刷屏系统错误；需要时可通过环境变量显式开启。
+    """
+    return os.environ.get("ISSUELAB_POST_FAILURE_COMMENT", "0").lower() in {"1", "true", "yes", "on"}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Issue Lab Agent")
     subparsers = parser.add_subparsers(dest="command", help="可用命令")
@@ -187,13 +195,19 @@ def main():
             # 如果需要，自动发布到 Issue（auto_clean 会自动处理 @mentions）
             if getattr(args, "post", False):
                 publishable, reason = _is_result_publishable(result)
-                body_to_post = response if publishable else _build_failure_comment(agent_name, result)
-                if post_comment(args.issue, body_to_post, agent_name=agent_name):
-                    print(f"[OK] {agent_name} response posted to issue #{args.issue}")
-                    if not publishable:
-                        print(f"[WARN] {agent_name} result blocked by guardrail: {reason}")
+                if publishable:
+                    if post_comment(args.issue, response, agent_name=agent_name):
+                        print(f"[OK] {agent_name} response posted to issue #{args.issue}")
+                    else:
+                        print(f"[ERROR] Failed to post {agent_name} response")
                 else:
-                    print(f"[ERROR] Failed to post {agent_name} response")
+                    print(f"[WARN] {agent_name} result blocked by guardrail: {reason}")
+                    if _should_post_failure_comment():
+                        body_to_post = _build_failure_comment(agent_name, result)
+                        if post_comment(args.issue, body_to_post, agent_name=agent_name):
+                            print(f"[OK] {agent_name} failure summary posted to issue #{args.issue}")
+                        else:
+                            print(f"[ERROR] Failed to post {agent_name} failure summary")
 
     elif args.command == "review":
         # 顺序执行：moderator -> reviewer_a -> reviewer_b -> summarizer
@@ -215,13 +229,19 @@ def main():
             # 如果需要，自动发布到 Issue（auto_clean 会自动处理 @mentions）
             if getattr(args, "post", False):
                 publishable, reason = _is_result_publishable(result)
-                body_to_post = response if publishable else _build_failure_comment(agent_name, result)
-                if post_comment(args.issue, body_to_post, agent_name=agent_name):
-                    print(f"[OK] {agent_name} response posted to issue #{args.issue}")
-                    if not publishable:
-                        print(f"[WARN] {agent_name} result blocked by guardrail: {reason}")
+                if publishable:
+                    if post_comment(args.issue, response, agent_name=agent_name):
+                        print(f"[OK] {agent_name} response posted to issue #{args.issue}")
+                    else:
+                        print(f"[ERROR] Failed to post {agent_name} response")
                 else:
-                    print(f"[ERROR] Failed to post {agent_name} response")
+                    print(f"[WARN] {agent_name} result blocked by guardrail: {reason}")
+                    if _should_post_failure_comment():
+                        body_to_post = _build_failure_comment(agent_name, result)
+                        if post_comment(args.issue, body_to_post, agent_name=agent_name):
+                            print(f"[OK] {agent_name} failure summary posted to issue #{args.issue}")
+                        else:
+                            print(f"[ERROR] Failed to post {agent_name} failure summary")
 
             # 如果是 summarator，检查是否需要自动关闭
             if agent_name == "summarizer":
@@ -469,23 +489,33 @@ def main():
 
         # 发布到主仓库（使用 post_comment 统一处理）
         if getattr(args, "post", False):
-            # 使用 post_comment 统一处理（auto_clean 会自动处理 @mentions）
-            if post_comment(args.issue, response, agent_name=args.agent, repo=args.repo):
-                print(f"[OK] 已发布到 {args.repo}#{args.issue}")
+            publishable, reason = _is_result_publishable(result)
+            if publishable:
+                # 使用 post_comment 统一处理（auto_clean 会自动处理 @mentions）
+                if post_comment(args.issue, response, agent_name=args.agent, repo=args.repo):
+                    print(f"[OK] 已发布到 {args.repo}#{args.issue}")
+                else:
+                    print(f"[ERROR] 发布到 {args.repo}#{args.issue} 失败")
+                    # 将结果输出到文件，供workflow使用
+                    output_file = os.environ.get("GITHUB_OUTPUT")
+                    if output_file:
+                        try:
+                            with open(output_file, "a") as f:
+                                # 转义换行符
+                                escaped_response = response.replace("\n", "%0A").replace("\r", "%0D")
+                                f.write(f"agent_response={escaped_response}\n")
+                                f.write("comment_failed=true\n")
+                            print("[INFO] 结果已保存到 GITHUB_OUTPUT，workflow可以处理")
+                        except Exception as e:
+                            print(f"[WARNING] 保存到 GITHUB_OUTPUT 失败: {e}")
             else:
-                print(f"[ERROR] 发布到 {args.repo}#{args.issue} 失败")
-                # 将结果输出到文件，供workflow使用
-                output_file = os.environ.get("GITHUB_OUTPUT")
-                if output_file:
-                    try:
-                        with open(output_file, "a") as f:
-                            # 转义换行符
-                            escaped_response = response.replace("\n", "%0A").replace("\r", "%0D")
-                            f.write(f"agent_response={escaped_response}\n")
-                            f.write("comment_failed=true\n")
-                        print("[INFO] 结果已保存到 GITHUB_OUTPUT，workflow可以处理")
-                    except Exception as e:
-                        print(f"[WARNING] 保存到 GITHUB_OUTPUT 失败: {e}")
+                print(f"[WARN] {args.agent} result blocked by guardrail: {reason}")
+                if _should_post_failure_comment():
+                    body_to_post = _build_failure_comment(args.agent, result)
+                    if post_comment(args.issue, body_to_post, agent_name=args.agent, repo=args.repo):
+                        print(f"[OK] 已发布失败摘要到 {args.repo}#{args.issue}")
+                    else:
+                        print(f"[ERROR] 发布失败摘要到 {args.repo}#{args.issue} 失败")
 
     elif args.command == "list-agents":
         # 列出所有可用的 Agent

@@ -126,3 +126,56 @@ async def test_gqy20_multistage_stops_when_researcher_fails(monkeypatch):
     assert result["ok"] is False
     assert result["failed_stage"] == "Researcher"
     assert calls["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gqy20_multistage_researcher_invalid_output_fallbacks_to_single_stage(monkeypatch):
+    from issuelab.agents import executor as ex
+
+    calls = {"count": 0}
+
+    async def fake_run_single_agent(prompt: str, agent_name: str, *, stage_name: str | None = None):
+        calls["count"] += 1
+        # First call: Researcher invalid output (missing evidence)
+        if calls["count"] == 1:
+            return {
+                "ok": True,
+                "response": """```yaml
+summary: "research"
+open_questions: []
+confidence: "low"
+```""",
+                "cost_usd": 0.01,
+                "num_turns": 1,
+                "tool_calls": ["Read"],
+                "input_tokens": 1,
+                "output_tokens": 1,
+                "total_tokens": 2,
+            }
+
+        # Second call: fallback single-stage answer
+        return {
+            "ok": True,
+            "response": """## Summary
+基于现有信息给出初步判断。
+
+## Key Findings
+- 关键证据尚不完整。
+
+## Recommended Actions
+- 补充一手来源后再下最终结论。""",
+            "cost_usd": 0.02,
+            "num_turns": 1,
+            "tool_calls": ["Read"],
+            "input_tokens": 2,
+            "output_tokens": 2,
+            "total_tokens": 4,
+        }
+
+    monkeypatch.setattr(ex, "run_single_agent", fake_run_single_agent)
+
+    result = await ex._run_gqy20_multistage("base prompt", 1, "ctx")
+    assert result["ok"] is True
+    assert "证据不足" in result["response"]
+    assert calls["count"] == 2
+    assert "FallbackSingleStage" in result["stages"]

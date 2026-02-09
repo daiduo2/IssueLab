@@ -88,13 +88,54 @@ class TestMainTriggerComment:
             assert captured.get("trigger_comment") == "@agent please focus on this"
 
     def test_execute_post_uses_guardrail_comment_for_failed_result(self, monkeypatch):
-        """execute --post 遇到失败结果应发布护栏评论而不是原始响应"""
+        """execute --post 遇到失败结果，默认不发布失败评论（避免刷屏）"""
         from issuelab import __main__ as main_mod
 
         monkeypatch.setattr(
             main_mod, "get_issue_info", lambda *a, **k: {"title": "t", "body": "b", "comments": "", "comment_count": 0}
         )
         monkeypatch.setattr(main_mod, "parse_agents_arg", lambda s: ["gqy20"])
+
+        async def _fake_run(*args, **kwargs):
+            return {
+                "gqy20": {
+                    "ok": False,
+                    "error_type": "timeout",
+                    "error_message": "deadline exceeded",
+                    "failed_stage": "Researcher",
+                    "response": "[系统护栏] timeout",
+                    "cost_usd": 0.0,
+                    "num_turns": 0,
+                    "tool_calls": [],
+                }
+            }
+
+        posted = {"called": False}
+
+        def _fake_post(issue, body, agent_name=None, **kwargs):
+            posted["called"] = True
+            return True
+
+        monkeypatch.setattr(main_mod, "run_agents_parallel", _fake_run)
+        monkeypatch.setattr(main_mod, "post_comment", _fake_post)
+
+        with (
+            patch("issuelab.tools.github.write_issue_context_file", lambda *a, **k: "/tmp/issue_1.md"),
+            patch("sys.argv", ["issuelab", "execute", "--issue", "1", "--agents", "gqy20", "--post"]),
+        ):
+            main_mod.main()
+
+        assert posted["called"] is False
+
+    def test_execute_post_can_publish_failure_summary_when_enabled(self, monkeypatch):
+        """开启 ISSUELAB_POST_FAILURE_COMMENT 时应发布失败摘要"""
+        from issuelab import __main__ as main_mod
+
+        monkeypatch.setattr(
+            main_mod, "get_issue_info", lambda *a, **k: {"title": "t", "body": "b", "comments": "", "comment_count": 0}
+        )
+        monkeypatch.setattr(main_mod, "parse_agents_arg", lambda s: ["gqy20"])
+        monkeypatch.setenv("ISSUELAB_POST_FAILURE_COMMENT", "1")
 
         async def _fake_run(*args, **kwargs):
             return {
