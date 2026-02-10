@@ -20,3 +20,46 @@ def extract_github_mentions(text: str | None) -> list[str]:
             seen.add(username)
             result.append(username)
     return result
+
+
+def extract_controlled_mentions(text: str | None) -> list[str]:
+    """Extract mentions only from controlled collaboration sections.
+
+    Supported formats:
+    - `相关人员: @alice @bob`
+    - `协作请求:` followed by bullet lines like `- @alice`
+    """
+    if not text:
+        return []
+
+    result: list[str] = []
+    seen: set[str] = set()
+    in_list_section = False
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+
+        if "相关人员:" in line:
+            suffix = line.split("相关人员:", 1)[1]
+            for username in extract_github_mentions(suffix):
+                if username not in seen:
+                    seen.add(username)
+                    result.append(username)
+            in_list_section = False
+            continue
+
+        if line.startswith("协作请求:"):
+            in_list_section = True
+            continue
+
+        if in_list_section:
+            if re.match(r"^\s*-\s+@", raw_line):
+                for username in extract_github_mentions(raw_line):
+                    if username not in seen:
+                        seen.add(username)
+                        result.append(username)
+                continue
+            if line and not line.startswith("-"):
+                in_list_section = False
+
+    return result

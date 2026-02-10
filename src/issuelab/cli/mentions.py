@@ -12,10 +12,10 @@ import json
 import os
 import sys
 
-from issuelab.utils.mentions import extract_github_mentions
+from issuelab.utils.mentions import extract_controlled_mentions, extract_github_mentions
 
 
-def parse_github_mentions(text: str) -> list[str]:
+def parse_github_mentions(text: str, controlled_section_only: bool = False) -> list[str]:
     """
     从文本中提取所有 GitHub @mentions
 
@@ -33,6 +33,8 @@ def parse_github_mentions(text: str) -> list[str]:
         >>> parse_github_mentions("@alice @alice @bob")
         ['alice', 'bob']
     """
+    if controlled_section_only:
+        return extract_controlled_mentions(text)
     return extract_github_mentions(text)
 
 
@@ -71,6 +73,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--comment-body", help="Comment body text", default="")
     parser.add_argument("--comment-body-file", help="Comment body text (read from file)", default="")
     parser.add_argument("--output", default="csv", choices=["json", "csv", "text"], help="Output format (default: csv)")
+    parser.add_argument(
+        "--controlled-section-only",
+        action="store_true",
+        help="Only parse mentions from controlled sections (相关人员/协作请求)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -101,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # 解析 mentions（使用新的函数名）
-    mentions = parse_github_mentions(text)
+    mentions = parse_github_mentions(text, controlled_section_only=args.controlled_section_only)
 
     # 输出
     if args.output == "json":

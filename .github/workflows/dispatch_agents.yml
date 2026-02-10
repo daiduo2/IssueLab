@@ -13,6 +13,13 @@ permissions:
 
 jobs:
   dispatch:
+    if: |
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.state == 'open' &&
+       (contains(github.event.comment.body, '相关人员:') || contains(github.event.comment.body, '协作请求:'))) ||
+      (github.event_name == 'issues' &&
+       github.event.issue.state == 'open' &&
+       (contains(github.event.issue.body, '相关人员:') || contains(github.event.issue.body, '协作请求:')))
     runs-on: ubuntu-latest
     # 允许 Agent 回复中的 @mention 触发分发
 
@@ -37,6 +44,7 @@ jobs:
 
           uv run python scripts/parse_mentions.py \
             --issue-body-file "$ISSUE_BODY_FILE" \
+            --controlled-section-only \
             --output json
 
           rm -f "$ISSUE_BODY_FILE"
@@ -54,6 +62,7 @@ jobs:
 
           uv run python scripts/parse_mentions.py \
             --comment-body-file "$COMMENT_BODY_FILE" \
+            --controlled-section-only \
             --output json
 
           rm -f "$COMMENT_BODY_FILE"

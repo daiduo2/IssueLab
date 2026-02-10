@@ -166,15 +166,15 @@ def post_comment(
         是否成功发布
     """
     env = Config.prepare_github_env()
-    from issuelab.response_processor import extract_mentions_from_yaml
 
     # 保持正文原样，不做结构重写；仅做一次 mentions 解析与过滤。
     if auto_clean:
         from issuelab.mention_policy import filter_mentions
+        from issuelab.utils.mentions import extract_controlled_mentions
 
         candidate_mentions = mentions
         if candidate_mentions is None:
-            candidate_mentions = extract_mentions_from_yaml(body)
+            candidate_mentions = extract_controlled_mentions(body)
 
         allowed_mentions, filtered_mentions = filter_mentions(candidate_mentions or [], issue_number=issue_number)
         mentions_max_count = _load_mentions_max_count()

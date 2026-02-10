@@ -35,18 +35,7 @@ def test_post_comment():
 
 def test_post_comment_limits_mentions(monkeypatch):
     """相关人员区域按配置上限输出"""
-    body = """```yaml
-summary: "Test"
-findings: []
-recommendations: []
-mentions:
-  - arxiv_observer
-  - gqy22
-  - observer
-  - summarizer
-  - moderator
-confidence: "high"
-```"""
+    body = "分析正文\n\n---\n相关人员: @arxiv_observer @gqy22 @observer @summarizer @moderator"
 
     captured = {}
 
@@ -74,13 +63,7 @@ confidence: "high"
 
 
 def test_post_comment_mentions_limit_from_config(monkeypatch):
-    body = """```yaml
-mentions:
-  - a1
-  - a2
-  - a3
-  - a4
-```"""
+    body = "分析正文\n\n---\n相关人员: @a1 @a2 @a3 @a4"
 
     captured = {}
 

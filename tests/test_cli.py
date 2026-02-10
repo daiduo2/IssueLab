@@ -72,6 +72,26 @@ class TestParseMentions:
         assert "bob" in mentions
         assert "charlie" in mentions
 
+    def test_controlled_section_only(self):
+        """Only parse mentions inside controlled sections."""
+        text = """
+        普通正文 @noise
+        ---
+        相关人员: @alice @bob
+        """
+        mentions = parse_github_mentions(text, controlled_section_only=True)
+        assert mentions == ["alice", "bob"]
+
+    def test_controlled_section_list_format(self):
+        """Parse list format under 协作请求."""
+        text = """
+        协作请求:
+        - @alice
+        - @bob
+        """
+        mentions = parse_github_mentions(text, controlled_section_only=True)
+        assert mentions == ["alice", "bob"]
+
 
 class TestMentionsCLI:
     """Tests for mentions CLI."""
@@ -118,6 +138,17 @@ class TestMentionsCLI:
 
         captured = capsys.readouterr()
         assert "Error" in captured.err
+
+    def test_cli_controlled_section_only(self, capsys):
+        """CLI controlled-section mode ignores free-text mentions."""
+        from issuelab.cli.mentions import main
+
+        body = "正文 @noise\n---\n相关人员: @alice @bob"
+        result = main(["--issue-body", body, "--controlled-section-only"])
+        assert result == 0
+
+        captured = capsys.readouterr()
+        assert captured.out.strip() == "alice,bob"
 
 
 class TestParseAgentsArg:
