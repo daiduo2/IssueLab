@@ -8,10 +8,8 @@ from pathlib import Path
 from typing import Any
 
 # 统一 registry 读取
-from issuelab.agents.registry import BUILTIN_AGENTS, load_registry
+from issuelab.agents.registry import load_registry
 
-# 提示词目录
-PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
 AGENTS_DIR = Path(__file__).parent.parent.parent.parent / "agents"
 
 # 进程级缓存
@@ -20,15 +18,8 @@ _CACHED_SIGNATURE: tuple[tuple[str, float], ...] | None = None
 
 
 def _get_discovery_signature() -> tuple:
-    """生成当前 prompts/agents 的签名（基于文件 mtime）"""
+    """生成当前 agents 配置签名（基于文件 mtime）"""
     signature: list[tuple[str, float]] = []
-
-    if PROMPTS_DIR.exists():
-        for prompt_file in sorted(PROMPTS_DIR.glob("*.md")):
-            try:
-                signature.append((f"prompts/{prompt_file.name}", prompt_file.stat().st_mtime))
-            except OSError:
-                continue
 
     if AGENTS_DIR.exists():
         for user_dir in sorted(AGENTS_DIR.iterdir()):
@@ -109,7 +100,7 @@ def parse_agent_metadata(content: str) -> dict[str, str | list[str] | None] | No
 def discover_agents() -> dict[str, dict[str, Any]]:
     """动态发现所有可用的 Agent
 
-    通过读取 prompts 文件夹下的 .md 文件，解析 YAML 元数据
+    通过读取 agents/<name>/agent.yml + prompt.md
 
     Returns:
         {
@@ -127,62 +118,6 @@ def discover_agents() -> dict[str, dict[str, Any]]:
         return _CACHED_AGENTS
 
     agents: dict[str, dict[str, Any]] = {}
-
-    if not PROMPTS_DIR.exists():
-        return agents
-
-    # 扫描 prompts 目录下的 .md 文件
-    for prompt_file in PROMPTS_DIR.glob("*.md"):
-        content = prompt_file.read_text()
-        metadata = parse_agent_metadata(content)
-
-        if metadata and "agent" in metadata:
-            agent_name_value = metadata.get("agent")
-            if not isinstance(agent_name_value, str) or not agent_name_value:
-                continue
-            agent_name = agent_name_value
-            # 移除 frontmatter，获取纯 prompt 内容
-            clean_content = re.sub(r"^---\n.*?\n---\n", "", content, flags=re.DOTALL).strip()
-            trigger_conditions = metadata.get("trigger_conditions", [])
-            if not isinstance(trigger_conditions, list):
-                trigger_conditions = []
-
-            agents[agent_name] = {
-                "description": metadata.get("description", ""),
-                "prompt": clean_content,
-                "trigger_conditions": trigger_conditions,
-            }
-
-    # 扫描 agents 目录下的系统内置 agent 覆盖（目录化配置）
-    # 约定：agents/<builtin>/prompt.md 可覆盖 prompts/<builtin>.md
-    if AGENTS_DIR.exists():
-        for builtin_name in BUILTIN_AGENTS:
-            prompt_file = AGENTS_DIR / builtin_name / "prompt.md"
-            if not prompt_file.exists():
-                continue
-            prompt_content = prompt_file.read_text()
-            metadata = parse_agent_metadata(prompt_content)
-            clean_content = re.sub(r"^---\n.*?\n---\n", "", prompt_content, flags=re.DOTALL).strip()
-
-            description = agents.get(builtin_name, {}).get("description", "")
-            trigger_conditions = agents.get(builtin_name, {}).get("trigger_conditions", [])
-            if not isinstance(trigger_conditions, list):
-                trigger_conditions = []
-            if metadata:
-                meta_desc = metadata.get("description", "")
-                if isinstance(meta_desc, str) and meta_desc:
-                    description = meta_desc
-                meta_trigger = metadata.get("trigger_conditions", [])
-                if isinstance(meta_trigger, list):
-                    trigger_conditions = meta_trigger
-
-            agents[builtin_name] = {
-                "description": description,
-                "prompt": clean_content,
-                "trigger_conditions": trigger_conditions,
-            }
-
-    # 扫描 agents 目录下的用户自定义 agent
     if AGENTS_DIR.exists():
         registry = load_registry(AGENTS_DIR, include_disabled=False)
 
@@ -192,17 +127,27 @@ def discover_agents() -> dict[str, dict[str, Any]]:
             if not prompt_file.exists():
                 continue
 
-            # 读取 prompt 内容（移除可能的 frontmatter）
             prompt_content = prompt_file.read_text()
-            prompt_content = re.sub(r"^---\n.*?\n---\n", "", prompt_content, flags=re.DOTALL).strip()
+            metadata = parse_agent_metadata(prompt_content)
+            clean_content = re.sub(r"^---\n.*?\n---\n", "", prompt_content, flags=re.DOTALL).strip()
 
-            triggers = agent_config.get("triggers", [])
-            if not isinstance(triggers, list):
-                triggers = []
+            description = str(agent_config.get("description", ""))
+            trigger_conditions = agent_config.get("triggers", [])
+            if not isinstance(trigger_conditions, list):
+                trigger_conditions = []
+
+            if metadata:
+                meta_desc = metadata.get("description")
+                if isinstance(meta_desc, str) and meta_desc:
+                    description = meta_desc
+                meta_trigger = metadata.get("trigger_conditions")
+                if isinstance(meta_trigger, list):
+                    trigger_conditions = meta_trigger
+
             agents[agent_name] = {
-                "description": str(agent_config.get("description", "")),
-                "prompt": prompt_content,
-                "trigger_conditions": triggers,
+                "description": description,
+                "prompt": clean_content,
+                "trigger_conditions": trigger_conditions,
             }
 
     _CACHED_AGENTS = agents

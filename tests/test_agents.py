@@ -123,18 +123,20 @@ class TestDiscoverAgentsCache:
     def test_discover_agents_cache_reuse_and_invalidate(self, tmp_path, monkeypatch):
         from issuelab.agents import discovery as discovery_mod
 
-        prompts_dir = tmp_path / "prompts"
         agents_dir = tmp_path / "agents"
-        prompts_dir.mkdir()
         agents_dir.mkdir()
+        (agents_dir / "moderator").mkdir()
+        (agents_dir / "moderator" / "agent.yml").write_text(
+            "name: moderator\nowner: moderator\ndescription: test\nrepository: gqy20/IssueLab\n",
+            encoding="utf-8",
+        )
 
-        prompt_path = prompts_dir / "moderator.md"
+        prompt_path = agents_dir / "moderator" / "prompt.md"
         prompt_path.write_text(
             "---\nagent: moderator\ndescription: test\n---\n# Moderator\nv1",
             encoding="utf-8",
         )
 
-        monkeypatch.setattr(discovery_mod, "PROMPTS_DIR", prompts_dir)
         monkeypatch.setattr(discovery_mod, "AGENTS_DIR", agents_dir)
 
         agents_v1 = discovery_mod.discover_agents()
@@ -159,25 +161,22 @@ class TestDiscoverAgentsCache:
         assert "v2" in agents_v2["moderator"]["prompt"]
 
 
-def test_builtin_prompt_can_be_overridden_by_agents_dir(tmp_path, monkeypatch):
-    """内置 agent 应支持 agents/<name>/prompt.md 覆盖 prompts/<name>.md"""
+def test_builtin_prompt_loaded_from_agents_dir(tmp_path, monkeypatch):
+    """内置 agent 应从 agents/<name>/prompt.md 读取。"""
     from issuelab.agents import discovery as discovery_mod
 
-    prompts_dir = tmp_path / "prompts"
     agents_dir = tmp_path / "agents"
-    prompts_dir.mkdir()
     (agents_dir / "moderator").mkdir(parents=True)
 
-    (prompts_dir / "moderator.md").write_text(
-        "---\nagent: moderator\ndescription: from-prompts\n---\n# Moderator\nfrom prompts",
+    (agents_dir / "moderator" / "agent.yml").write_text(
+        "name: moderator\nowner: moderator\ndescription: from-agent-yml\nrepository: gqy20/IssueLab\n",
         encoding="utf-8",
     )
     (agents_dir / "moderator" / "prompt.md").write_text(
-        "---\nagent: moderator\ndescription: from-agents\n---\n# Moderator\nfrom agents",
+        "---\nagent: moderator\ndescription: from-prompt-frontmatter\n---\n# Moderator\nfrom agents",
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(discovery_mod, "PROMPTS_DIR", prompts_dir)
     monkeypatch.setattr(discovery_mod, "AGENTS_DIR", agents_dir)
     discovery_mod._CACHED_AGENTS = None
     discovery_mod._CACHED_SIGNATURE = None
@@ -185,4 +184,4 @@ def test_builtin_prompt_can_be_overridden_by_agents_dir(tmp_path, monkeypatch):
     agents = discovery_mod.discover_agents()
     assert "moderator" in agents
     assert "from agents" in agents["moderator"]["prompt"]
-    assert agents["moderator"]["description"] == "from-agents"
+    assert agents["moderator"]["description"] == "from-prompt-frontmatter"

@@ -97,27 +97,6 @@ def _validate_agent_prompt(path: Path, errors: list[str]) -> None:
         _error(errors, f"File must end with newline: {path}")
 
 
-def _validate_builtin_prompt(path: Path, errors: list[str]) -> None:
-    try:
-        content = path.read_text(encoding="utf-8")
-    except Exception as exc:
-        _error(errors, f"Cannot read {path}: {exc}")
-        return
-
-    frontmatter = _parse_frontmatter(content)
-    if frontmatter is None:
-        _error(errors, f"Missing or invalid YAML frontmatter in {path}")
-        return
-
-    if not frontmatter.get("agent"):
-        _error(errors, f"Missing 'agent' in frontmatter: {path}")
-    if not frontmatter.get("description"):
-        _error(errors, f"Missing 'description' in frontmatter: {path}")
-
-    if not content.endswith("\n"):
-        _error(errors, f"File must end with newline: {path}")
-
-
 def _check_repo_exists(repo: str, errors: list[str], path: Path) -> None:
     token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
     if not token:
@@ -194,13 +173,8 @@ def main() -> int:
                 else:
                     _error(errors, f"Unsupported agent file: {file}")
 
-        elif file.startswith("prompts/"):
-            if not file.endswith(".md"):
-                _error(errors, f"Prompt files must be .md: {file}")
-            else:
-                _validate_builtin_prompt(path, errors)
         else:
-            _error(errors, f"Unsupported path outside agents/ or prompts/: {file}")
+            _error(errors, f"Unsupported path outside agents/: {file}")
 
     if errors:
         print("Validation failed:", file=sys.stderr)
