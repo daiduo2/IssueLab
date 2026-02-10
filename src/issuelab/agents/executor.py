@@ -675,7 +675,7 @@ async def _run_gqy20_multistage(agent_prompt: str, issue_number: int, task_conte
                 unique_tools.append(tool)
         return unique_tools
 
-    async def _run_stage(stage_name: str, task: str) -> dict[str, Any]:
+    async def _run_stage(stage_name: str, task: str, *, structured_output: bool = True) -> dict[str, Any]:
         nonlocal total_cost, total_turns, total_input_tokens, total_output_tokens, total_tokens
         stage_prompt = f"""{agent_prompt}
 
@@ -693,7 +693,7 @@ async def _run_gqy20_multistage(agent_prompt: str, issue_number: int, task_conte
 ## 当前任务
 {task}
 """
-        result = await run_single_agent(stage_prompt, "gqy20", stage_name=stage_name)
+        result = await run_single_agent(stage_prompt, "gqy20", stage_name=stage_name if structured_output else None)
         total_cost += float(result.get("cost_usd", 0.0))
         total_turns += int(result.get("num_turns", 0))
         total_input_tokens += int(result.get("input_tokens", 0))
@@ -765,13 +765,16 @@ confidence: "low|medium|high"
 降级策略（重要）：
 - 当前多阶段证据收集未满足结构化门槛，请直接给出可发布答复
 - 请在开头明确标注：证据不足，基于有限信息
-- 优先使用 YAML 输出；若无法稳定输出 YAML，可使用 Markdown 三段式：
+- 必须使用 Markdown 输出，禁止 YAML/JSON 代码块
+- 使用以下结构：
   - ## Summary
   - ## Key Findings
+  - ## Evidence Gaps
   - ## Recommended Actions
+  - ## Sources
 - 若涉及事实，请尽量给出可追溯链接；无法核验时明确说明不确定性
 """
-            fallback_result = await run_single_agent(fallback_prompt, "gqy20", stage_name="FallbackSingleStage")
+            fallback_result = await run_single_agent(fallback_prompt, "gqy20")
             total_cost += float(fallback_result.get("cost_usd", 0.0))
             total_turns += int(fallback_result.get("num_turns", 0))
             total_input_tokens += int(fallback_result.get("input_tokens", 0))
@@ -935,19 +938,13 @@ Critic 输出：
 Verifier 输出：
 {verifier_text}
 
-最终输出必须是 YAML：
-```yaml
-summary: ""
-findings:
-  - ""
-recommendations:
-  - ""
-sources:
-  - ""
-uncertainties:
-  - ""
-confidence: "low|medium|high"
-```
+最终输出必须是 Markdown（禁止 YAML/JSON 代码块）：
+- [Agent: gqy20]
+- ## Summary
+- ## Key Findings
+- ## Evidence Gaps
+- ## Recommended Actions
+- ## Sources
 """
 
     judge_text = ""
@@ -957,7 +954,7 @@ confidence: "low|medium|high"
         judge_task = judge_base_task
         if retry_feedback:
             judge_task += f"\n\n补充要求（第 {attempt + 1} 次尝试）：\n{retry_feedback}\n"
-        judge_stage = await _run_stage("Judge", judge_task)
+        judge_stage = await _run_stage("Judge", judge_task, structured_output=False)
         if not judge_stage["ok"]:
             return _build_failure_result(
                 "Judge",
