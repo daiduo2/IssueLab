@@ -23,6 +23,9 @@ timeout_seconds: 180
 enable_skills: true
 enable_subagents: true
 enable_mcp: true
+output_format: markdown
+mentions_mode: controlled
+output_template: concise_review_v1
 
 # 仓库配置（重要：你的 fork 仓库）
 repository: "gqy22/IssueLab"

@@ -724,6 +724,71 @@ class TestStreamingOutput:
         assert "优先输出以下 YAML" in captured["prompt"]
 
     @pytest.mark.asyncio
+    async def test_output_schema_uses_global_template(self):
+        """当配置 output_template 时应按模板注入段落规范。"""
+        from claude_agent_sdk import ResultMessage
+
+        from issuelab.agents.executor import run_single_agent
+
+        captured = {}
+
+        async def mock_query(*args, **kwargs):
+            captured["prompt"] = kwargs.get("prompt")
+            result = MagicMock(spec=ResultMessage)
+            result.total_cost_usd = 0.0
+            result.num_turns = 1
+            result.session_id = "test-session"
+            yield result
+
+        with (
+            patch("issuelab.agents.executor.query", mock_query),
+            patch(
+                "issuelab.agents.executor.get_agent_config",
+                return_value={"output_format": "markdown", "output_template": "concise_review_v1"},
+            ),
+        ):
+            await run_single_agent("test prompt", "test_agent")
+
+        assert "## Output Format (required)" in captured["prompt"]
+        assert "`## Summary`" in captured["prompt"]
+        assert "`## Recommended Actions`" in captured["prompt"]
+        assert "`## Sources`" in captured["prompt"]
+
+    @pytest.mark.asyncio
+    async def test_output_schema_applies_section_order_override(self):
+        """agent.yml 的 section_order 应覆盖模板默认顺序。"""
+        from claude_agent_sdk import ResultMessage
+
+        from issuelab.agents.executor import run_single_agent
+
+        captured = {}
+
+        async def mock_query(*args, **kwargs):
+            captured["prompt"] = kwargs.get("prompt")
+            result = MagicMock(spec=ResultMessage)
+            result.total_cost_usd = 0.0
+            result.num_turns = 1
+            result.session_id = "test-session"
+            yield result
+
+        with (
+            patch("issuelab.agents.executor.query", mock_query),
+            patch(
+                "issuelab.agents.executor.get_agent_config",
+                return_value={
+                    "output_format": "markdown",
+                    "output_template": "review_v1",
+                    "section_order": ["summary", "actions", "sources"],
+                },
+            ),
+        ):
+            await run_single_agent("test prompt", "test_agent")
+
+        assert "`## Summary`" in captured["prompt"]
+        assert "`## Recommended Actions`" in captured["prompt"]
+        assert "`## Sources`" in captured["prompt"]
+
+    @pytest.mark.asyncio
     async def test_system_agent_timeout_defaults_to_600(self):
         """system agent 在无显式配置时应使用 600s 超时"""
         from claude_agent_sdk import ResultMessage

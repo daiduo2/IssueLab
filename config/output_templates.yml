@@ -1,0 +1,43 @@
+version: 1
+default_template: review_v1
+
+templates:
+  review_v1:
+    section_order:
+      - summary
+      - findings
+      - actions
+      - risks
+      - sources
+    sections:
+      summary:
+        title: "## Summary"
+        guidance: "1-3 句结论，说明结论范围与当前状态。"
+      findings:
+        title: "## Key Findings"
+        guidance: "2-5 条要点，使用列表，尽量给事实与证据。"
+      actions:
+        title: "## Recommended Actions"
+        guidance: "1-5 条可执行动作，明确优先级或先后顺序。"
+      risks:
+        title: "## Risks & Uncertainties"
+        guidance: "列出风险、假设和不确定性。"
+      sources:
+        title: "## Sources"
+        guidance: "提供可追溯 URL，避免无来源断言。"
+
+  concise_review_v1:
+    section_order:
+      - summary
+      - actions
+      - sources
+    sections:
+      summary:
+        title: "## Summary"
+        guidance: "1-2 句核心结论。"
+      actions:
+        title: "## Recommended Actions"
+        guidance: "最多 3 条动作，优先高价值项。"
+      sources:
+        title: "## Sources"
+        guidance: "列出关键来源 URL。"
