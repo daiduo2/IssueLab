@@ -138,7 +138,7 @@ def test_post_comment_with_explicit_mentions_does_not_parse_body(monkeypatch):
     monkeypatch.setattr("issuelab.tools.github.os.unlink", lambda _path: None)
     monkeypatch.setattr("issuelab.mention_policy.filter_mentions", fake_filter_mentions)
     monkeypatch.setattr(
-        "issuelab.response_processor.extract_mentions_from_yaml",
+        "issuelab.utils.mentions.extract_controlled_mentions",
         lambda _body: (_ for _ in ()).throw(AssertionError("should not parse body mentions")),
     )
 
@@ -156,8 +156,7 @@ def test_post_comment_does_not_fallback_to_plain_text_mentions(monkeypatch):
 
     monkeypatch.setattr("issuelab.tools.github.subprocess.run", fake_run)
     monkeypatch.setattr("issuelab.tools.github.os.unlink", lambda _path: None)
-    monkeypatch.setattr("issuelab.response_processor.extract_mentions_from_yaml", lambda _body: [])
-    monkeypatch.setattr("issuelab.utils.mentions.extract_github_mentions", lambda _body: ["alice"])
+    monkeypatch.setattr("issuelab.utils.mentions.extract_controlled_mentions", lambda _body: [])
     monkeypatch.setattr(
         "issuelab.mention_policy.filter_mentions", lambda mentions, policy=None, issue_number=None: (mentions, [])
     )

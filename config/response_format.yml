@@ -22,11 +22,7 @@ limits:
   actions_max_chars: 160
   mentions_max_count: 5
 
-rules:
-  mentions_only_in_actions: true
-  yaml_required: true
-
 notes:
-  - mentions is required when you want to notify others; it must be a list of GitHub usernames (without @).
-  - do not use @mentions in the free-text body; use the mentions field instead.
+  - mentions are parsed from controlled sections only.
+  - "use `相关人员: @user1 @user2` or `协作请求:` bullet list for dispatch."
   - observer should include decision fields in YAML: analysis, should_trigger, reason, agent, comment.

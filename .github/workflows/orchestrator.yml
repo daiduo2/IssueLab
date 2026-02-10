@@ -103,7 +103,14 @@ jobs:
           FOUND_AGENTS=$(python - <<'PY'
           import os
           import re
+          import sys
           from pathlib import Path
+
+          src_path = Path.cwd() / "src"
+          if src_path.exists():
+            sys.path.insert(0, str(src_path))
+
+          from issuelab.utils.mentions import extract_controlled_mentions
 
           comment = os.environ.get("COMMENT_BODY", "")
           agents_dir = Path("agents")
@@ -137,26 +144,7 @@ jobs:
               system_agents.add(owner_match.group(1).strip().lower())
 
           found: list[str] = []
-          controlled_lines: list[str] = []
-          in_list_section = False
-          for raw_line in comment.splitlines():
-            line = raw_line.strip()
-            if "相关人员:" in line:
-              controlled_lines.append(line.split("相关人员:", 1)[1])
-              in_list_section = False
-              continue
-            if line.startswith("协作请求:"):
-              in_list_section = True
-              continue
-            if in_list_section:
-              if re.match(r"^\s*-\s+@", raw_line):
-                controlled_lines.append(raw_line)
-                continue
-              if line and not line.startswith("-"):
-                in_list_section = False
-
-          controlled_text = "\n".join(controlled_lines)
-          for mention in re.findall(r"@([a-zA-Z0-9_-]+)", controlled_text):
+          for mention in extract_controlled_mentions(comment):
             candidate = mention.lower()
             if candidate in system_agents and candidate not in found:
               found.append(candidate)

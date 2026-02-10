@@ -20,6 +20,7 @@ from issuelab.mention_policy import (
     clean_mentions_in_text,
     filter_mentions,
 )
+from issuelab.utils.mentions import extract_controlled_mentions
 from issuelab.utils.yaml_text import extract_yaml_block
 
 logger = logging.getLogger(__name__)
@@ -56,8 +57,7 @@ _DEFAULT_FORMAT_RULES = {
         "mentions_max_count": 5,
     },
     "rules": {
-        "mentions_only_in_actions": True,
-        "yaml_required": True,
+        # Reserved for future rule flags.
     },
 }
 
@@ -456,7 +456,7 @@ def trigger_mentioned_agents(
     Returns:
         (results, allowed_mentions, filtered_mentions)
     """
-    mentions = extract_mentions_from_yaml(response)
+    mentions = extract_controlled_mentions(response)
 
     if not mentions:
         logger.info("[INFO] Response中没有@mentions")
@@ -554,7 +554,7 @@ def process_agent_response(
     response_text = normalized_response
 
     # 提取所有 @mentions（基于原始回复，避免规范化后丢失）
-    mentions = extract_mentions_from_yaml(raw_response_text)
+    mentions = extract_controlled_mentions(raw_response_text)
 
     # 清理主体内容（将所有 @username 替换为 "用户 username"）
     clean_response = clean_mentions_in_text(response_text)

@@ -83,14 +83,14 @@ class TestTriggerMentionedAgents:
 
         mock_trigger.return_value = True
 
-        response = """```yaml
-summary: "Test"
-findings: []
-recommendations: []
-mentions:
-  - moderator
-confidence: "high"
-```"""
+        response = """[Agent: moderator]
+
+## Summary
+Test
+
+---
+相关人员: @moderator
+"""
         results, allowed, filtered = trigger_mentioned_agents(response, 1, "Title", "Body")
 
         assert results == {"moderator": True}
@@ -107,15 +107,14 @@ confidence: "high"
 
         mock_trigger.return_value = True
 
-        response = """```yaml
-summary: "Test"
-findings: []
-recommendations: []
-mentions:
-  - reviewer_a
-  - reviewer_b
-confidence: "high"
-```"""
+        response = """[Agent: moderator]
+
+## Summary
+Test
+
+---
+相关人员: @reviewer_a @reviewer_b
+"""
         results, allowed, filtered = trigger_mentioned_agents(response, 2, "Title", "Body")
 
         assert results == {"reviewer_a": True, "reviewer_b": True}
@@ -128,15 +127,14 @@ confidence: "high"
         """跳过系统账号"""
         from issuelab.response_processor import trigger_mentioned_agents
 
-        response = """```yaml
-summary: "Test"
-findings: []
-recommendations: []
-mentions:
-  - github
-  - github-actions
-confidence: "high"
-```"""
+        response = """[Agent: moderator]
+
+## Summary
+Test
+
+---
+相关人员: @github @github-actions
+"""
         results, allowed, filtered = trigger_mentioned_agents(response, 1, "Title", "Body")
 
         assert results == {}
@@ -151,15 +149,14 @@ confidence: "high"
 
         mock_trigger.return_value = True
 
-        response = """```yaml
-summary: "Test"
-findings: []
-recommendations: []
-mentions:
-  - github-actions
-  - reviewer_a
-confidence: "high"
-```"""
+        response = """[Agent: moderator]
+
+## Summary
+Test
+
+---
+相关人员: @github-actions @reviewer_a
+"""
         results, allowed, filtered = trigger_mentioned_agents(response, 1, "Title", "Body")
 
         assert results == {"reviewer_a": True}
@@ -187,14 +184,14 @@ confidence: "high"
 
         mock_trigger.return_value = False
 
-        response = """```yaml
-summary: "Test"
-findings: []
-recommendations: []
-mentions:
-  - reviewer_a
-confidence: "high"
-```"""
+        response = """[Agent: moderator]
+
+## Summary
+Test
+
+---
+相关人员: @reviewer_a
+"""
         results, allowed, filtered = trigger_mentioned_agents(response, 1, "Title", "Body")
 
         assert results == {"reviewer_a": False}
@@ -218,10 +215,12 @@ class TestProcessAgentResponse:
 summary: "Test"
 findings: []
 recommendations: []
-mentions:
-  - reviewer_a
 confidence: "high"
-```""",
+```
+
+---
+相关人员: @reviewer_a
+""",
             issue_number=1,
             issue_title="Title",
             issue_body="Body",
@@ -246,10 +245,12 @@ confidence: "high"
 summary: "Test"
 findings: []
 recommendations: []
-mentions:
-  - reviewer_b
 confidence: "high"
-```""",
+```
+
+---
+相关人员: @reviewer_b
+""",
                 "cost_usd": 0.01,
             },
             issue_number=1,
@@ -270,10 +271,12 @@ confidence: "high"
 summary: "Test"
 findings: []
 recommendations: []
-mentions:
-  - reviewer_a
 confidence: "high"
-```""",
+```
+
+---
+相关人员: @reviewer_a
+""",
             issue_number=1,
             auto_dispatch=False,
         )
