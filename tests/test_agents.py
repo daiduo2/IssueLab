@@ -121,7 +121,7 @@ class TestDiscoverAgentsCache:
 
 
 def test_builtin_prompt_loaded_from_agents_dir(tmp_path, monkeypatch):
-    """内置 agent 应从 agents/<name>/prompt.md 读取。"""
+    """系统 agent 应从 agents/<name>/prompt.md 读取。"""
     from issuelab.agents import discovery as discovery_mod
 
     agents_dir = tmp_path / "agents"

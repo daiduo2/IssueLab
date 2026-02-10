@@ -322,22 +322,17 @@ github-actions bot 创建的评论
 
 ### 4.2 解决方案：混合触发机制
 
-**内置 Agent：通过 Label 触发**
+**System Agent：通过 workflow dispatch 触发**
 
 ```yaml
-on:
-  issues:
-    types: [labeled]
-
 jobs:
   run-agent:
-    if: github.event.label.name == 'bot:trigger-moderator'
     steps:
       - name: Run Moderator
-        run: uv run python -m issuelab agent --agent-name moderator
+        run: gh workflow run agent.yml -f agent=moderator -f issue_number=1
 ```
 
-Observer 添加 label → 触发 workflow → 执行 agent
+Observer 调用 workflow dispatch → 执行 system agent
 
 **用户 Agent：通过 Dispatch 触发**
 
@@ -367,10 +362,10 @@ class ObserverTrigger:
         # 1. 查找 agent 配置
         agent_config = self.load_agent_config(agent_name)
 
-        # 2. 判断是内置还是用户 agent
-        if agent_config.get("type") == "builtin":
-            # 内置：添加 label
-            self.add_label(issue_number, f"bot:trigger-{agent_name}")
+        # 2. 判断是 system 还是 user agent
+        if agent_config.get("agent_type") == "system":
+            # system：workflow dispatch
+            self.trigger_system_workflow(agent_name, issue_number)
         else:
             # 用户：dispatch
             self.dispatch_to_user_repo(
@@ -387,13 +382,13 @@ class ObserverTrigger:
 **测试先行：**
 
 ```python
-def test_observer_trigger_builtin_agent():
-    """测试触发内置 agent（通过 label）"""
+def test_observer_trigger_system_agent():
+    """测试触发 system agent（通过 workflow dispatch）"""
     trigger = ObserverTrigger()
     trigger.auto_trigger_agent("moderator", issue_number=1)
 
-    # 验证：添加了 label
-    assert "bot:trigger-moderator" in get_issue_labels(1)
+    # 验证：触发了 workflow dispatch
+    assert workflow_dispatch_was_called("agent.yml", "moderator", 1)
 
 def test_observer_trigger_user_agent():
     """测试触发用户 agent（通过 dispatch）"""
@@ -414,8 +409,8 @@ def auto_trigger_agent(self, agent_name: str, issue_number: int):
     if not agent_config or not agent_config.get("enabled"):
         return
 
-    if agent_config.get("type") == "builtin":
-        self.github.add_label(issue_number, f"bot:trigger-{agent_name}")
+    if agent_config.get("agent_type") == "system":
+        self.trigger_system_workflow(agent_name, issue_number)
     else:
         self.dispatch_to_user_repo(agent_config, issue_number)
 ```

@@ -12,35 +12,35 @@ import subprocess
 from unittest.mock import Mock, patch
 
 
-class TestBuiltinAgentDetection:
+class TestSystemAgentDetection:
     """测试系统agent检测"""
 
-    def test_moderator_is_builtin(self):
+    def test_moderator_is_system(self):
         """Moderator应该被识别为系统agent"""
         from issuelab.observer_trigger import is_system_agent
 
         assert is_system_agent("moderator") is True
 
-    def test_reviewer_a_is_builtin(self):
+    def test_reviewer_a_is_system(self):
         """Reviewer_a应该被识别为系统agent"""
         from issuelab.observer_trigger import is_system_agent
 
         assert is_system_agent("reviewer_a") is True
 
-    def test_observer_is_builtin(self):
+    def test_observer_is_system(self):
         """Observer应该被识别为系统agent"""
         from issuelab.observer_trigger import is_system_agent
 
         assert is_system_agent("observer") is True
 
-    def test_user_agent_is_not_builtin(self):
+    def test_user_agent_is_not_system(self):
         """用户agent不应该被识别为系统agent"""
         from issuelab.observer_trigger import is_system_agent
 
         assert is_system_agent("gqy22") is False
         assert is_system_agent("alice") is False
 
-    def test_empty_string_is_not_builtin(self):
+    def test_empty_string_is_not_system(self):
         """空字符串不应该被识别为系统agent"""
         from issuelab.observer_trigger import is_system_agent
 
@@ -54,11 +54,11 @@ class TestBuiltinAgentDetection:
         assert is_system_agent("REVIEWER_A") is True
 
 
-class TestBuiltinAgentTrigger:
+class TestSystemAgentTrigger:
     """测试系统agent触发"""
 
     @patch("subprocess.run")
-    def test_trigger_system_agent_adds_label(self, mock_run):
+    def test_trigger_system_agent_dispatches_workflow(self, mock_run):
         """触发系统agent应该通过workflow dispatch触发"""
         from issuelab.observer_trigger import trigger_system_agent
 
@@ -99,7 +99,7 @@ class TestBuiltinAgentTrigger:
         assert result is False
 
     @patch("subprocess.run")
-    def test_trigger_multiple_builtin_agents(self, mock_run):
+    def test_trigger_multiple_system_agents(self, mock_run):
         """可以触发多个不同的系统agent"""
         from issuelab.observer_trigger import trigger_system_agent
 
@@ -172,25 +172,25 @@ class TestObserverAutoTrigger:
 
     @patch("issuelab.observer_trigger.trigger_system_agent")
     @patch("issuelab.observer_trigger.is_system_agent")
-    def test_auto_trigger_system_agent(self, mock_is_builtin, mock_trigger_builtin):
-        """Observer判断需要触发系统agent时应该添加label"""
+    def test_auto_trigger_system_agent(self, mock_is_system, mock_trigger_system):
+        """Observer判断需要触发系统agent时应发起workflow dispatch"""
         from issuelab.observer_trigger import auto_trigger_agent
 
-        mock_is_builtin.return_value = True
-        mock_trigger_builtin.return_value = True
+        mock_is_system.return_value = True
+        mock_trigger_system.return_value = True
 
         result = auto_trigger_agent(agent_name="moderator", issue_number=1, issue_title="Test", issue_body="Body")
 
-        mock_trigger_builtin.assert_called_once_with("moderator", 1)
+        mock_trigger_system.assert_called_once_with("moderator", 1)
         assert result is True
 
     @patch("issuelab.observer_trigger.trigger_user_agent")
     @patch("issuelab.observer_trigger.is_system_agent")
-    def test_auto_trigger_user_agent(self, mock_is_builtin, mock_trigger_user):
+    def test_auto_trigger_user_agent(self, mock_is_system, mock_trigger_user):
         """Observer判断需要触发用户agent时应该调用dispatch"""
         from issuelab.observer_trigger import auto_trigger_agent
 
-        mock_is_builtin.return_value = False
+        mock_is_system.return_value = False
         mock_trigger_user.return_value = True
 
         result = auto_trigger_agent(agent_name="gqy22", issue_number=1, issue_title="Test", issue_body="Body")
@@ -201,12 +201,12 @@ class TestObserverAutoTrigger:
 
     @patch("issuelab.observer_trigger.trigger_system_agent")
     @patch("issuelab.observer_trigger.is_system_agent")
-    def test_auto_trigger_returns_false_on_failure(self, mock_is_builtin, mock_trigger_builtin):
+    def test_auto_trigger_returns_false_on_failure(self, mock_is_system, mock_trigger_system):
         """触发失败应该返回False"""
         from issuelab.observer_trigger import auto_trigger_agent
 
-        mock_is_builtin.return_value = True
-        mock_trigger_builtin.return_value = False
+        mock_is_system.return_value = True
+        mock_trigger_system.return_value = False
 
         result = auto_trigger_agent(agent_name="observer", issue_number=1, issue_title="Test", issue_body="Body")
 

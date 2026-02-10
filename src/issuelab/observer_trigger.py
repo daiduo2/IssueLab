@@ -166,15 +166,6 @@ def auto_trigger_agent(agent_name: str, issue_number: int, issue_title: str, iss
         return False
 
 
-# Backward-compatible aliases for historical naming.
-def is_builtin_agent(agent_name: str) -> bool:
-    return is_system_agent(agent_name)
-
-
-def trigger_builtin_agent(agent_name: str, issue_number: int) -> bool:
-    return trigger_system_agent(agent_name, issue_number)
-
-
 def process_observer_results(results: list[dict], issue_data: dict[int, dict], auto_trigger: bool = True) -> int:
     """
     处理Observer批量分析结果，自动触发agent
