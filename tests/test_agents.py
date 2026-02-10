@@ -6,7 +6,6 @@ from issuelab.agents import (
     get_available_agents,
     load_prompt,
     normalize_agent_name,
-    parse_agent_metadata,
 )
 
 
@@ -51,32 +50,6 @@ def test_agent_metadata_parsing():
     # 验证 moderator 有正确的元数据
     assert "moderator" in agents
     assert "审核" in agents["moderator"]["description"] or "调度" in agents["moderator"]["description"]
-
-
-def test_parse_agent_metadata_valid():
-    """测试元数据解析 - 有效输入"""
-    content = """---
-agent: test_agent
-description: Test agent
-trigger_conditions:
-  - condition 1
-  - condition 2
----
-# Test Prompt
-Some content here
-"""
-    metadata = parse_agent_metadata(content)
-    assert metadata is not None
-    assert metadata["agent"] == "test_agent"
-    assert metadata["description"] == "Test agent"
-    assert metadata["trigger_conditions"] == ["condition 1", "condition 2"]
-
-
-def test_parse_agent_metadata_no_frontmatter():
-    """测试元数据解析 - 无 frontmatter"""
-    content = "# Just a plain prompt without frontmatter"
-    metadata = parse_agent_metadata(content)
-    assert metadata is None
 
 
 def test_load_prompt_returns_string():
@@ -184,4 +157,4 @@ def test_builtin_prompt_loaded_from_agents_dir(tmp_path, monkeypatch):
     agents = discovery_mod.discover_agents()
     assert "moderator" in agents
     assert "from agents" in agents["moderator"]["prompt"]
-    assert agents["moderator"]["description"] == "from-prompt-frontmatter"
+    assert agents["moderator"]["description"] == "from-agent-yml"

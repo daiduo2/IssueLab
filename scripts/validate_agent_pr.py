@@ -17,27 +17,6 @@ def _error(errors: list[str], message: str) -> None:
     errors.append(message)
 
 
-def _parse_frontmatter(text: str) -> dict | None:
-    if not text.startswith("---"):
-        return None
-    parts = text.split("\n")
-    if len(parts) < 3:
-        return None
-    # Find closing ---
-    try:
-        end_idx = parts[1:].index("---") + 1
-    except ValueError:
-        return None
-    fm_text = "\n".join(parts[1:end_idx])
-    try:
-        data = yaml.safe_load(fm_text) or {}
-    except Exception:
-        return None
-    if not isinstance(data, dict):
-        return None
-    return data
-
-
 def _validate_agent_yml(path: Path, folder: str, errors: list[str]) -> None:
     try:
         content = path.read_text(encoding="utf-8")

@@ -17,6 +17,11 @@ _CACHED_AGENTS: dict[str, dict[str, Any]] | None = None
 _CACHED_SIGNATURE: tuple[tuple[str, float], ...] | None = None
 
 
+def _strip_frontmatter(content: str) -> str:
+    """Remove optional YAML frontmatter from prompt markdown."""
+    return re.sub(r"^---\n.*?\n---\n", "", content, flags=re.DOTALL).strip()
+
+
 def _get_discovery_signature() -> tuple:
     """生成当前 agents 配置签名（基于文件 mtime）"""
     signature: list[tuple[str, float]] = []
@@ -35,66 +40,6 @@ def _get_discovery_signature() -> tuple:
                     continue
 
     return tuple(signature)
-
-
-def parse_agent_metadata(content: str) -> dict[str, str | list[str] | None] | None:
-    """从 prompt 文件中解析 YAML 元数据
-
-    格式：
-    ---
-    agent: moderator
-    description: 审核与控场代理
-    trigger_conditions:
-      - 新论文 Issue
-      - 需要分配评审流程
-    ---
-    """
-    # 匹配 YAML frontmatter
-    match = re.match(r"^---\n(.*?)\n---\n", content, re.DOTALL)
-    if not match:
-        return None
-
-    yaml_str = match.group(1)
-    metadata: dict[str, str | list[str] | None] = {}
-    current_list_key: str | None = None
-    current_list: list[str] = []
-
-    # 解析 YAML
-    for line in yaml_str.split("\n"):
-        line = line.rstrip()
-
-        # 检测列表项
-        if line.strip().startswith("- "):
-            item = line.strip()[2:].strip()
-            current_list.append(item)
-            # 找到最后一个列表键
-            for key in ["trigger_conditions"]:
-                if key in metadata:
-                    current_list_key = key
-            continue
-
-        # 检测普通键值对
-        if ":" in line and not line.strip().startswith("-"):
-            # 先保存之前的列表
-            if current_list and current_list_key:
-                metadata[current_list_key] = current_list
-                current_list = []
-                current_list_key = None
-
-            key, value = line.split(":", 1)
-            key = key.strip()
-            value = value.strip()
-
-            if value:
-                metadata[key] = value
-            else:
-                metadata[key] = None
-
-    # 保存最后的列表
-    if current_list and current_list_key:
-        metadata[current_list_key] = current_list
-
-    return metadata if metadata else None
 
 
 def discover_agents() -> dict[str, dict[str, Any]]:
@@ -128,21 +73,12 @@ def discover_agents() -> dict[str, dict[str, Any]]:
                 continue
 
             prompt_content = prompt_file.read_text()
-            metadata = parse_agent_metadata(prompt_content)
-            clean_content = re.sub(r"^---\n.*?\n---\n", "", prompt_content, flags=re.DOTALL).strip()
+            clean_content = _strip_frontmatter(prompt_content)
 
             description = str(agent_config.get("description", ""))
             trigger_conditions = agent_config.get("triggers", [])
             if not isinstance(trigger_conditions, list):
                 trigger_conditions = []
-
-            if metadata:
-                meta_desc = metadata.get("description")
-                if isinstance(meta_desc, str) and meta_desc:
-                    description = meta_desc
-                meta_trigger = metadata.get("trigger_conditions")
-                if isinstance(meta_trigger, list):
-                    trigger_conditions = meta_trigger
 
             agents[agent_name] = {
                 "description": description,
