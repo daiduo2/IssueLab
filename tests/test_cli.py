@@ -92,6 +92,20 @@ class TestParseMentions:
         mentions = parse_github_mentions(text, controlled_section_only=True)
         assert mentions == ["alice", "bob"]
 
+    def test_controlled_section_only_reads_trailing_block(self):
+        """Ignore historical mentions in body, read only trailing controlled block."""
+        text = """
+        历史记录：
+        相关人员: @old_agent
+
+        正文继续...
+
+        ---
+        相关人员: @alice @bob
+        """
+        mentions = parse_github_mentions(text, controlled_section_only=True)
+        assert mentions == ["alice", "bob"]
+
 
 class TestMentionsCLI:
     """Tests for mentions CLI."""
@@ -275,6 +289,40 @@ enabled: false
         matched = match_triggers(["carol"], registry)
         assert len(matched) == 1
         assert matched[0]["owner"] == "carol"
+
+    def test_dispatch_mentions_skips_system_agents(self, monkeypatch):
+        """System agents should be ignored by dispatch workflow."""
+        from issuelab.cli.dispatch import dispatch_mentions
+
+        monkeypatch.setattr(
+            "issuelab.cli.dispatch.load_registry",
+            lambda _agents_dir: {
+                "moderator": {
+                    "owner": "moderator",
+                    "repository": "gqy20/IssueLab",
+                    "agent_type": "system",
+                },
+                "alice": {
+                    "owner": "alice",
+                    "repository": "gqy20/IssueLab",
+                    "agent_type": "user",
+                },
+            },
+        )
+
+        summary = dispatch_mentions(
+            mentions=["moderator", "alice"],
+            agents_dir="agents",
+            source_repo="gqy20/IssueLab",
+            issue_number=1,
+            dry_run=True,
+            app_id="fake_app_id",
+            app_private_key="fake_private_key",
+        )
+
+        assert summary["total_count"] == 1
+        assert summary["success_count"] == 1
+        assert summary["local_agents"] == ["alice"]
 
 
 class TestDispatchCLI:

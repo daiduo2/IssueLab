@@ -23,43 +23,44 @@ def extract_github_mentions(text: str | None) -> list[str]:
 
 
 def extract_controlled_mentions(text: str | None) -> list[str]:
-    """Extract mentions only from controlled collaboration sections.
-
-    Supported formats:
-    - `相关人员: @alice @bob`
-    - `协作请求:` followed by bullet lines like `- @alice`
-    """
+    """Extract mentions only from the trailing controlled collaboration section."""
     if not text:
+        return []
+
+    lines = text.splitlines()
+    if not lines:
+        return []
+
+    end = len(lines) - 1
+    while end >= 0 and not lines[end].strip():
+        end -= 1
+    if end < 0:
         return []
 
     result: list[str] = []
     seen: set[str] = set()
-    in_list_section = False
 
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
+    # Case 1: 文末为单行 "相关人员: @a @b"
+    tail = lines[end].strip()
+    if "相关人员:" in tail:
+        suffix = tail.split("相关人员:", 1)[1]
+        for username in extract_github_mentions(suffix):
+            if username not in seen:
+                seen.add(username)
+                result.append(username)
+        return result
 
-        if "相关人员:" in line:
-            suffix = line.split("相关人员:", 1)[1]
-            for username in extract_github_mentions(suffix):
+    # Case 2: 文末为列表形式
+    list_lines: list[str] = []
+    idx = end
+    while idx >= 0 and re.match(r"^\s*-\s+@", lines[idx]):
+        list_lines.append(lines[idx])
+        idx -= 1
+
+    if list_lines and idx >= 0 and lines[idx].strip().startswith("协作请求:"):
+        for line in reversed(list_lines):
+            for username in extract_github_mentions(line):
                 if username not in seen:
                     seen.add(username)
                     result.append(username)
-            in_list_section = False
-            continue
-
-        if line.startswith("协作请求:"):
-            in_list_section = True
-            continue
-
-        if in_list_section:
-            if re.match(r"^\s*-\s+@", raw_line):
-                for username in extract_github_mentions(raw_line):
-                    if username not in seen:
-                        seen.add(username)
-                        result.append(username)
-                continue
-            if line and not line.startswith("-"):
-                in_list_section = False
-
     return result

@@ -16,13 +16,15 @@ jobs:
     if: |
       (github.event_name == 'issue_comment' &&
        github.event.issue.state == 'open' &&
+       github.event.comment.user.type != 'Bot' &&
+       !contains(fromJson('["moderator","reviewer_a","reviewer_b","summarizer","observer","pubmed_observer","arxiv_observer","video_manim"]'), github.event.comment.user.login) &&
        !contains(github.event.comment.body, '[Agent:') &&
        (contains(github.event.comment.body, '相关人员:') || contains(github.event.comment.body, '协作请求:'))) ||
       (github.event_name == 'issues' &&
        github.event.issue.state == 'open' &&
        (contains(github.event.issue.body, '相关人员:') || contains(github.event.issue.body, '协作请求:')))
     runs-on: ubuntu-latest
-    # 允许 Agent 回复中的 @mention 触发分发
+    # 仅处理用户触发的受控 @mention；系统 agent 由 orchestrator 处理
 
     steps:
       - uses: actions/checkout@v4

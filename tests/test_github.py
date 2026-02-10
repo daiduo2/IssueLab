@@ -87,6 +87,30 @@ def test_post_comment_mentions_limit_from_config(monkeypatch):
     assert content.strip().splitlines()[-1] == "相关人员: @a1 @a2 @a3"
 
 
+def test_post_comment_replaces_existing_controlled_footer(monkeypatch):
+    body = "分析正文\n\n---\n相关人员: @legacy1 @legacy2"
+    captured = {}
+
+    def fake_run(cmd, capture_output, text, env):
+        captured["cmd"] = cmd
+        return MagicMock(returncode=0)
+
+    monkeypatch.setattr("issuelab.tools.github.subprocess.run", fake_run)
+    monkeypatch.setattr("issuelab.tools.github.os.unlink", lambda _path: None)
+    monkeypatch.setattr(
+        "issuelab.mention_policy.filter_mentions", lambda mentions, policy=None, issue_number=None: (mentions, [])
+    )
+
+    result = post_comment(1, body, mentions=["alice"])
+    assert result is True
+
+    cmd = captured.get("cmd", [])
+    body_path = cmd[cmd.index("--body-file") + 1]
+    content = Path(body_path).read_text(encoding="utf-8")
+    assert content.count("相关人员:") == 1
+    assert content.strip().splitlines()[-1] == "相关人员: @alice"
+
+
 def test_post_comment_keeps_original_body_without_normalize(monkeypatch):
     body = """[Agent: reviewer_a]
 

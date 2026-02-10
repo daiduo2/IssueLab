@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 from typing import Literal
@@ -14,6 +15,11 @@ logger = get_logger(__name__)
 
 # GitHub 评论最大长度
 MAX_COMMENT_LENGTH = 10000
+_CONTROLLED_FOOTER_RE = re.compile(
+    r"(?:\n{1,3}(?:---\s*\n)?(?:\s*相关人员:\s*(?:@[a-zA-Z0-9_](?:[a-zA-Z0-9_-]*[a-zA-Z0-9_])?\s*)+"
+    r"|\s*协作请求:\s*(?:\n\s*-\s*@.*)+)\s*)\Z",
+    re.MULTILINE,
+)
 
 
 def _load_mentions_max_count() -> int:
@@ -188,8 +194,10 @@ def post_comment(
     if mentions:
         from issuelab.mention_policy import build_mention_section
 
+        # 避免重复追加：如果正文尾部已有受控区，先移除再注入过滤后的单一受控区。
+        body_no_footer = _CONTROLLED_FOOTER_RE.sub("", body.rstrip())
         mention_section = build_mention_section(mentions, format_type="labeled")
-        final_body = f"{body}\n\n{mention_section}"
+        final_body = f"{body_no_footer}\n\n{mention_section}"
     else:
         final_body = body
 

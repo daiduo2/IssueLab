@@ -366,7 +366,15 @@ def dispatch_mentions(
         print("Info: No matching agents found")
         return {"success_count": 0, "total_count": 0, "local_agents": [], "failed_agents": []}
 
-    print(f"Matched {len(matched_configs)} agents")
+    matched_all_count = len(matched_configs)
+    matched_configs = [cfg for cfg in matched_configs if str(cfg.get("agent_type", "")).lower() != "system"]
+    skipped_system_count = matched_all_count - len(matched_configs)
+    if skipped_system_count > 0:
+        print(f"Info: Skipped {skipped_system_count} system agent(s); handled by orchestrator workflow")
+    if not matched_configs:
+        return {"success_count": 0, "total_count": 0, "local_agents": [], "failed_agents": []}
+
+    print(f"Matched {len(matched_configs)} user agents")
 
     client_payload: dict[str, Any] = {
         "source_repo": source_repo,
