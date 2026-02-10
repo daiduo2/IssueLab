@@ -3,8 +3,6 @@ name: Dispatch to User Agents
 on:
   issues:
     types: [opened, edited]
-  issue_comment:
-    types: [created, edited]
 
 permissions:
   contents: read
@@ -14,17 +12,11 @@ permissions:
 jobs:
   dispatch:
     if: |
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.state == 'open' &&
-       github.event.comment.user.type != 'Bot' &&
-       !contains(fromJson('["moderator","reviewer_a","reviewer_b","summarizer","observer","pubmed_observer","arxiv_observer","video_manim"]'), github.event.comment.user.login) &&
-       !contains(github.event.comment.body, '[Agent:') &&
-       (contains(github.event.comment.body, '相关人员:') || contains(github.event.comment.body, '协作请求:'))) ||
-      (github.event_name == 'issues' &&
-       github.event.issue.state == 'open' &&
-       (contains(github.event.issue.body, '相关人员:') || contains(github.event.issue.body, '协作请求:')))
+      github.event_name == 'issues' &&
+      github.event.issue.state == 'open' &&
+      (contains(github.event.issue.body, '相关人员:') || contains(github.event.issue.body, '协作请求:'))
     runs-on: ubuntu-latest
-    # 仅处理用户触发的受控 @mention；系统 agent 由 orchestrator 处理
+    # 仅处理 issue 正文中的受控 @mention（评论触发统一由 orchestrator 处理）
 
     steps:
       - uses: actions/checkout@v4
@@ -51,24 +43,6 @@ jobs:
             --output json
 
           rm -f "$ISSUE_BODY_FILE"
-
-      - name: Parse mentions from Comment
-        if: github.event_name == 'issue_comment'
-        id: parse_comment
-        env:
-          COMMENT_BODY_JSON: ${{ toJson(github.event.comment.body) }}
-        run: |
-          # 使用临时文件避免多行内容的 shell 解析问题
-          COMMENT_BODY_FILE=$(mktemp)
-          export COMMENT_BODY_FILE
-          python -c "import json, os; from pathlib import Path; content=json.loads(os.environ.get('COMMENT_BODY_JSON','\"\"')); Path(os.environ['COMMENT_BODY_FILE']).write_text(content or '', encoding='utf-8')"
-
-          uv run python scripts/parse_mentions.py \
-            --comment-body-file "$COMMENT_BODY_FILE" \
-            --controlled-section-only \
-            --output json
-
-          rm -f "$COMMENT_BODY_FILE"
 
       - name: Get labels
         id: labels
@@ -139,11 +113,10 @@ jobs:
           LOG_LEVEL: DEBUG
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY_JSON: ${{ toJson(github.event.issue.body) }}
-          COMMENT_BODY_JSON: ${{ toJson(github.event.comment.body) }}
         run: |
           mkdir -p artifacts/observability
           # 使用单引号包裹 JSON 以避免 bash 解析问题
-          mentions='${{ steps.parse_issue.outputs.mentions || steps.parse_comment.outputs.mentions }}'
+          mentions='${{ steps.parse_issue.outputs.mentions }}'
 
           if [ -z "$mentions" ] || [ "$mentions" = "[]" ]; then
             echo "No mentions found, skipping dispatch"
@@ -153,10 +126,8 @@ jobs:
 
           # 将多行内容写入临时文件，避免命令行参数解析问题
           ISSUE_BODY_FILE=$(mktemp)
-          COMMENT_BODY_FILE=$(mktemp)
           export ISSUE_BODY_FILE
-          export COMMENT_BODY_FILE
-          python -c "import json, os; from pathlib import Path; issue=json.loads(os.environ.get('ISSUE_BODY_JSON','\"\"')); comment=json.loads(os.environ.get('COMMENT_BODY_JSON','\"\"')); Path(os.environ['ISSUE_BODY_FILE']).write_text(issue or '', encoding='utf-8'); Path(os.environ['COMMENT_BODY_FILE']).write_text(comment or '', encoding='utf-8')"
+          python -c "import json, os; from pathlib import Path; issue=json.loads(os.environ.get('ISSUE_BODY_JSON','\"\"')); Path(os.environ['ISSUE_BODY_FILE']).write_text(issue or '', encoding='utf-8')"
 
           python -m issuelab.cli.dispatch \
             --mentions "$mentions" \
@@ -165,15 +136,13 @@ jobs:
             --issue-number ${{ github.event.issue.number }} \
             --issue-title "$ISSUE_TITLE" \
             --issue-body-file "$ISSUE_BODY_FILE" \
-            ${{ github.event_name == 'issue_comment' && format('--comment-id {0}', github.event.comment.id) || '' }} \
-            --comment-body-file "$COMMENT_BODY_FILE" \
             --labels '${{ steps.labels.outputs.labels }}' \
             --available-agents '${{ steps.collect_agents.outputs.agents }}' \
             --app-id "$GITHUB_APP_ID" \
             --app-private-key "$GITHUB_APP_PRIVATE_KEY" 2>&1 | tee artifacts/observability/dispatch_cli.log
 
           # 清理临时文件
-          rm -f "$ISSUE_BODY_FILE" "$COMMENT_BODY_FILE"
+          rm -f "$ISSUE_BODY_FILE"
       - uses: actions/upload-artifact@v4
         if: always() && hashFiles('logs/**') != ''
         with:
@@ -259,10 +228,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           PARSE_ISSUE_OUTCOME: ${{ steps.parse_issue.outcome }}
-          PARSE_COMMENT_OUTCOME: ${{ steps.parse_comment.outcome }}
           DISPATCH_OUTCOME: ${{ steps.dispatch.outcome }}
           MENTIONS_COUNT_ISSUE: ${{ steps.parse_issue.outputs.count }}
-          MENTIONS_COUNT_COMMENT: ${{ steps.parse_comment.outputs.count }}
           MATCHED_TOTAL: ${{ steps.dispatch.outputs.total_count }}
           DISPATCHED_COUNT: ${{ steps.dispatch.outputs.dispatched_count }}
           LOCAL_TOTAL: ${{ steps.run_local.outputs.total }}
@@ -286,7 +253,7 @@ jobs:
             except Exception:
               return 0
 
-          mentions_count = to_int(os.getenv("MENTIONS_COUNT_ISSUE")) + to_int(os.getenv("MENTIONS_COUNT_COMMENT"))
+          mentions_count = to_int(os.getenv("MENTIONS_COUNT_ISSUE"))
           matched_total = to_int(os.getenv("MATCHED_TOTAL"))
           dispatched = to_int(os.getenv("DISPATCHED_COUNT"))
           local_total = to_int(os.getenv("LOCAL_TOTAL"))
@@ -317,7 +284,7 @@ jobs:
                 samples[code].append(user)
 
           # Step-level fallback reasons
-          if os.getenv("PARSE_ISSUE_OUTCOME") == "failure" or os.getenv("PARSE_COMMENT_OUTCOME") == "failure":
+          if os.getenv("PARSE_ISSUE_OUTCOME") == "failure":
             counters["PARSE_FAILED"] += 1
           if os.getenv("DISPATCH_OUTCOME") == "failure" and not counters:
             counters["DISPATCH_FAILED"] += 1

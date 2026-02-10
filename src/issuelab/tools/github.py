@@ -227,7 +227,10 @@ def post_comment(
         logger.error(f"发布评论到 Issue #{issue_number} 失败: {result.stderr}")
         return False
 
-    logger.info(f"评论已发布到 Issue #{issue_number}")
+    if agent_name:
+        logger.info(f"[{agent_name}] 评论已发布到 Issue #{issue_number}")
+    else:
+        logger.info(f"评论已发布到 Issue #{issue_number}")
     return True
 
 

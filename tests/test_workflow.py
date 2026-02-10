@@ -14,6 +14,16 @@ def test_workflow_file_exists():
     assert workflow_path.exists(), f"Workflow file not found: {workflow_path}"
 
 
+def test_dispatch_workflow_only_handles_issues_event():
+    """dispatch_agents workflow 应仅处理 issues 事件，避免与 orchestrator 评论触发重叠。"""
+    workflow_path = PROJECT_ROOT / ".github" / "workflows" / "dispatch_agents.yml"
+    content = workflow_path.read_text()
+
+    assert "on:" in content
+    assert "issues:" in content
+    assert "issue_comment:" not in content
+
+
 def test_workflow_has_issue_comment_trigger():
     """工作流必须定义 issue_comment 触发器"""
     workflow_path = PROJECT_ROOT / ".github" / "workflows" / "orchestrator.yml"
