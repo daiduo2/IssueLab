@@ -109,6 +109,12 @@ def main():
     observe_batch_parser = subparsers.add_parser("observe-batch", help="并行分析多个 Issues")
     observe_batch_parser.add_argument("--issues", type=str, required=True, help="Issue 编号列表（逗号分隔）")
     observe_batch_parser.add_argument(
+        "--max-parallel",
+        type=int,
+        default=int(os.environ.get("ISSUELAB_OBSERVER_MAX_PARALLEL", "5")),
+        help="Observer 并行分析上限（默认 5，可用 ISSUELAB_OBSERVER_MAX_PARALLEL 覆盖）",
+    )
+    observe_batch_parser.add_argument(
         "--auto-trigger", action="store_true", help="自动触发 agent（内置agent用label，用户agent用dispatch）"
     )
 
@@ -325,7 +331,7 @@ def main():
         # 并行分析
         from issuelab.agents.observer import run_observer_batch
 
-        results = asyncio.run(run_observer_batch(issue_data_list))
+        results = asyncio.run(run_observer_batch(issue_data_list, max_parallel=args.max_parallel))
 
         # 输出结果
         print(f"\n{'=' * 60}")
