@@ -12,48 +12,26 @@ from issuelab.cli.mentions import parse_github_mentions
 class TestParseMentions:
     """Tests for mention parsing."""
 
-    def test_single_mention(self):
-        """Test parsing single mention."""
-        text = "@alice please review"
-        mentions = parse_github_mentions(text)
-        assert mentions == ["alice"]
-
-    def test_multiple_mentions(self):
-        """Test parsing multiple mentions."""
-        text = "@alice @bob @charlie"
-        mentions = parse_github_mentions(text)
-        assert mentions == ["alice", "bob", "charlie"]
-
-    def test_duplicate_mentions(self):
-        """Test deduplication."""
-        text = "@alice @bob @alice @charlie @bob"
-        mentions = parse_github_mentions(text)
-        assert mentions == ["alice", "bob", "charlie"]
-
-    def test_mention_with_hyphens(self):
-        """Test usernames with hyphens."""
-        text = "@user-name @test-user-123"
-        mentions = parse_github_mentions(text)
-        assert mentions == ["user-name", "test-user-123"]
-
-    def test_invalid_mentions(self):
-        """Test invalid mention patterns."""
-        text = "@-invalid @invalid- @123"
-        mentions = parse_github_mentions(text)
-        # 正则会匹配 @-invalid 的 invalid 和 @123 的 123
-        # GitHub 的实际行为也是这样的
-        assert mentions == ["invalid", "123"]
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("@alice please review", ["alice"]),
+            ("@alice @bob @charlie", ["alice", "bob", "charlie"]),
+            ("@alice @bob @alice @charlie @bob", ["alice", "bob", "charlie"]),
+            ("@user-name @test-user-123", ["user-name", "test-user-123"]),
+            # 正则会匹配 @-invalid 的 invalid 和 @123 的 123；与 GitHub 实际行为一致
+            ("@-invalid @invalid- @123", ["invalid", "123"]),
+            ("This is a normal text without any mentions", []),
+        ],
+    )
+    def test_parse_mentions_basic_cases(self, text: str, expected: list[str]):
+        """基础 mention 提取场景。"""
+        assert parse_github_mentions(text) == expected
 
     def test_empty_text(self):
         """Test empty input."""
         assert parse_github_mentions("") == []
         assert parse_github_mentions(None) == []
-
-    def test_no_mentions(self):
-        """Test text without mentions."""
-        text = "This is a normal text without any mentions"
-        mentions = parse_github_mentions(text)
-        assert mentions == []
 
     def test_mention_in_markdown(self):
         """Test mentions in markdown context."""
