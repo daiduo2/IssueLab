@@ -1,5 +1,9 @@
 """测试代理模块"""
 
+from pathlib import Path
+
+import yaml
+
 from issuelab.agents import (
     discover_agents,
     get_available_agents,
@@ -144,3 +148,29 @@ def test_system_prompt_loaded_from_agents_dir(tmp_path, monkeypatch):
     assert "moderator" in agents
     assert "from agents" in agents["moderator"]["prompt"]
     assert agents["moderator"]["description"] == "from-agent-yml"
+
+
+def test_system_agents_have_output_template():
+    """所有 system agent 必须配置 output_template，且模板必须可解析。"""
+    templates_file = Path("config/output_templates.yml")
+    templates_doc = yaml.safe_load(templates_file.read_text(encoding="utf-8")) or {}
+    global_templates = templates_doc.get("templates", {}) if isinstance(templates_doc, dict) else {}
+
+    for agent_yml in Path("agents").glob("*/agent.yml"):
+        config = yaml.safe_load(agent_yml.read_text(encoding="utf-8")) or {}
+        if config.get("agent_type") != "system":
+            continue
+
+        output_template = config.get("output_template")
+        assert isinstance(output_template, str) and output_template.strip(), f"{agent_yml} missing output_template"
+
+        if output_template.startswith("local:"):
+            local_name = output_template.split(":", 1)[1].strip()
+            local_file = agent_yml.parent / "output_config.yml"
+            local_doc = yaml.safe_load(local_file.read_text(encoding="utf-8")) if local_file.exists() else {}
+            local_templates = local_doc.get("templates", {}) if isinstance(local_doc, dict) else {}
+            assert local_name in local_templates, f"{agent_yml} references missing local template {local_name}"
+        else:
+            assert (
+                output_template in global_templates
+            ), f"{agent_yml} references missing global template {output_template}"

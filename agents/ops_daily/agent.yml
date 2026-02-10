@@ -21,6 +21,7 @@ timeout_seconds: 240
 enable_skills: false
 enable_subagents: false
 enable_mcp: false
+output_template: concise_review_v1
 
 repository: "gqy20/IssueLab"
 branch: "main"

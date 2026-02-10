@@ -14,6 +14,7 @@ enable_mcp: false
 enable_system_mcp: false
 output_format: markdown
 mentions_mode: controlled
+output_template: review_v1
 
 repository: "gqy20/IssueLab"
 branch: "main"

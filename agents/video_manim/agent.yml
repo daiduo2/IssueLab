@@ -12,6 +12,7 @@ enable_skills: true
 enable_subagents: true
 enable_mcp: true
 enable_system_mcp: false
+output_template: review_v1
 
 repository: "gqy20/IssueLab"
 branch: "main"
