@@ -173,7 +173,7 @@ def post_comment(
 
         # 2. 应用策略过滤
         if all_mentions:
-            allowed_mentions, filtered_mentions = filter_mentions(all_mentions)
+            allowed_mentions, filtered_mentions = filter_mentions(all_mentions, issue_number=issue_number)
 
             if filtered_mentions:
                 logger.info(f"[FILTER] 过滤了 {len(filtered_mentions)} 个 @mentions: {filtered_mentions}")

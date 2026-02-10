@@ -453,7 +453,7 @@ def trigger_mentioned_agents(
     logger.info(f"[INFO] 发现 {len(mentions)} 个@mentions: {mentions}")
 
     # 应用策略过滤
-    allowed_mentions, filtered_mentions = filter_mentions(mentions, policy)
+    allowed_mentions, filtered_mentions = filter_mentions(mentions, policy, issue_number=issue_number)
 
     if filtered_mentions:
         logger.info(f"[FILTER] 过滤了 {len(filtered_mentions)} 个@mentions: {filtered_mentions}")

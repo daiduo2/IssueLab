@@ -54,3 +54,36 @@ def test_core_handle_execute_calls_runner(monkeypatch):
 
     assert ret is None
     assert called == {"issue": 1, "agents": ["moderator"], "post": False}
+
+
+def test_personal_reply_minimal_path_without_config_parse(monkeypatch):
+    from issuelab.commands import personal
+
+    args = Namespace(
+        agent="gqy22",
+        issue=7,
+        repo="owner/repo",
+        issue_title="T",
+        issue_body="B",
+        available_agents="",
+        post=False,
+    )
+
+    calls = {"safe_load": 0, "run": 0}
+
+    def fake_safe_load(_stream):
+        calls["safe_load"] += 1
+        return {"ignored": True}
+
+    def fake_run_agents_command(issue, agents, context, comment_count, *, post=False, repo=None, available_agents=None):
+        calls["run"] += 1
+        return {"gqy22": {"response": "ok", "ok": True}}
+
+    monkeypatch.setattr("yaml.safe_load", fake_safe_load)
+    monkeypatch.setattr(personal, "run_agents_command", fake_run_agents_command)
+
+    ret = personal.handle_personal_reply(args)
+    assert ret is None
+    # personal-reply should not parse agent.yml content.
+    assert calls["safe_load"] == 0
+    assert calls["run"] == 1

@@ -11,7 +11,6 @@ Observer 自动触发功能
 import logging
 import os
 import subprocess
-import sys
 
 from issuelab.agents.registry import is_registered_agent
 from issuelab.agents.registry import is_system_agent as registry_is_system_agent
@@ -111,29 +110,23 @@ def trigger_user_agent(username: str, issue_number: int, issue_title: str, issue
 def dispatch_user_agent(username: str, issue_number: int, issue_title: str, issue_body: str, source_repo: str) -> bool:
     """Dispatch用户agent到fork仓库"""
     try:
-        from issuelab.cli.dispatch import main as dispatch_main
+        from issuelab.cli.dispatch import dispatch_mentions
 
-        sys.argv = [
-            "dispatch",
-            "--mentions",
-            username,
-            "--source-repo",
-            source_repo,
-            "--issue-number",
-            str(issue_number),
-            "--issue-title",
-            issue_title,
-            "--issue-body",
-            issue_body,
-        ]
-
-        exit_code = dispatch_main()
-        if exit_code == 0:
+        summary = dispatch_mentions(
+            mentions=[username],
+            agents_dir="agents",
+            source_repo=source_repo,
+            issue_number=issue_number,
+            issue_title=issue_title,
+            issue_body=issue_body,
+            app_id=os.environ.get("GITHUB_APP_ID"),
+            app_private_key=os.environ.get("GITHUB_APP_PRIVATE_KEY"),
+        )
+        if summary.get("success_count", 0) > 0:
             logger.info(f"[OK] 已dispatch用户agent: {username} for #{issue_number}")
             return True
-        else:
-            logger.error(f"[ERROR] dispatch用户agent失败: {username} (exit_code={exit_code})")
-            return False
+        logger.error(f"[ERROR] dispatch用户agent失败: {username} (summary={summary})")
+        return False
 
     except Exception as e:
         logger.error(f"[ERROR] dispatch用户agent异常: {e}")

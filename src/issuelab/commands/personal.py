@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 from argparse import Namespace
+from pathlib import Path
 
 from issuelab.commands.common import maybe_post_agent_result, run_agents_command
 
@@ -40,13 +41,8 @@ def handle_personal_scan(args: Namespace) -> int | None:
 
 
 def handle_personal_reply(args: Namespace) -> int | None:
-    import yaml
-
     agent_config_path = f"agents/{args.agent}/agent.yml"
-    try:
-        with open(agent_config_path) as f:
-            yaml.safe_load(f)
-    except FileNotFoundError:
+    if not Path(agent_config_path).exists():
         print(f"[ERROR] 未找到agent配置: {agent_config_path}")
         return 1
 

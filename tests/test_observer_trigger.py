@@ -115,26 +115,26 @@ class TestSystemAgentTrigger:
 class TestUserAgentTrigger:
     """测试用户agent触发"""
 
-    @patch("issuelab.cli.dispatch.main")
+    @patch("issuelab.cli.dispatch.dispatch_mentions")
     def test_trigger_user_agent_calls_dispatch(self, mock_dispatch, monkeypatch):
         """触发用户agent应该调用dispatch系统"""
         from issuelab.observer_trigger import trigger_user_agent
 
         monkeypatch.setenv("GITHUB_REPOSITORY", "test/repo")
-        mock_dispatch.return_value = 0
+        mock_dispatch.return_value = {"success_count": 1}
 
         result = trigger_user_agent(username="gqy22", issue_number=42, issue_title="Test Issue", issue_body="Test body")
 
         mock_dispatch.assert_called_once()
         assert result is True
 
-    @patch("issuelab.cli.dispatch.main")
+    @patch("issuelab.cli.dispatch.dispatch_mentions")
     def test_trigger_user_agent_with_correct_params(self, mock_dispatch, monkeypatch):
         """触发用户agent应该传递正确的参数"""
         from issuelab.observer_trigger import trigger_user_agent
 
         monkeypatch.setenv("GITHUB_REPOSITORY", "test/repo")
-        mock_dispatch.return_value = 0
+        mock_dispatch.return_value = {"success_count": 1}
 
         # 使用已注册的 agent gqy22
         trigger_user_agent(username="gqy22", issue_number=123, issue_title="Bug Report", issue_body="Description")
@@ -142,19 +142,19 @@ class TestUserAgentTrigger:
         # 验证dispatch被正确调用
         mock_dispatch.assert_called_once()
 
-    @patch("issuelab.cli.dispatch.main")
+    @patch("issuelab.cli.dispatch.dispatch_mentions")
     def test_trigger_user_agent_returns_false_on_failure(self, mock_dispatch, monkeypatch):
         """dispatch失败应该返回False"""
         from issuelab.observer_trigger import trigger_user_agent
 
         monkeypatch.setenv("GITHUB_REPOSITORY", "test/repo")
-        mock_dispatch.return_value = 1  # 失败
+        mock_dispatch.return_value = {"success_count": 0}  # 失败
 
         result = trigger_user_agent(username="gqy22", issue_number=1, issue_title="Test", issue_body="Body")
 
         assert result is False
 
-    @patch("issuelab.cli.dispatch.main")
+    @patch("issuelab.cli.dispatch.dispatch_mentions")
     def test_trigger_user_agent_handles_exception(self, mock_dispatch, monkeypatch):
         """dispatch异常应该被处理并返回False"""
         from issuelab.observer_trigger import trigger_user_agent
@@ -165,6 +165,19 @@ class TestUserAgentTrigger:
         result = trigger_user_agent(username="gqy22", issue_number=1, issue_title="Test", issue_body="Body")
 
         assert result is False
+
+    @patch("issuelab.cli.dispatch.dispatch_mentions")
+    def test_dispatch_user_agent_does_not_mutate_sys_argv(self, mock_dispatch):
+        """dispatch_user_agent 不应修改全局 sys.argv"""
+        import sys
+
+        from issuelab.observer_trigger import dispatch_user_agent
+
+        mock_dispatch.return_value = {"success_count": 1}
+        before = list(sys.argv)
+        dispatch_user_agent("gqy22", 1, "T", "B", "owner/repo")
+        after = list(sys.argv)
+        assert after == before
 
 
 class TestObserverAutoTrigger:
