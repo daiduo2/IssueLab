@@ -85,7 +85,7 @@ jobs:
       github.event.issue.state == 'open' &&
       github.event.comment.user.type != 'Bot' &&
       !contains(fromJson('["moderator","reviewer_a","reviewer_b","summarizer","observer","pubmed_observer","arxiv_observer","video_manim"]'), github.event.comment.user.login) &&
-      (contains(github.event.comment.body, '相关人员:') || contains(github.event.comment.body, '协作请求:'))
+      contains(github.event.comment.body, '@')
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -94,6 +94,8 @@ jobs:
       has_system: ${{ steps.detect.outputs.has_system }}
       user_mentions: ${{ steps.detect.outputs.user_mentions }}
       has_user: ${{ steps.detect.outputs.has_user }}
+      mention_source: ${{ steps.detect.outputs.mention_source }}
+      detect_reason: ${{ steps.detect.outputs.detect_reason }}
 
     steps:
       - uses: actions/checkout@v4
@@ -114,10 +116,19 @@ jobs:
             sys.path.insert(0, str(src_path))
 
           from issuelab.agents.registry import load_registry
-          from issuelab.utils.mentions import extract_controlled_mentions
+          from issuelab.utils.mentions import extract_controlled_mentions, extract_github_mentions
 
           comment = os.environ.get("COMMENT_BODY", "")
           is_agent_comment = "[Agent:" in comment
+          controlled_mentions = extract_controlled_mentions(comment)
+          mention_source = "controlled"
+          mentions = controlled_mentions
+          if not mentions:
+            mention_source = "body_fallback"
+            mentions = extract_github_mentions(comment)
+          if not mentions:
+            mention_source = "none"
+
           registry = load_registry(Path("agents"))
           system_agents: set[str] = set()
           user_agents: set[str] = set()
@@ -133,7 +144,7 @@ jobs:
 
           found_system: list[str] = []
           found_user: list[str] = []
-          for mention in extract_controlled_mentions(comment):
+          for mention in mentions:
             candidate = mention.lower()
             # agent 评论不再触发 system agents，避免递归链路；
             # 但允许触发 user agents（如 @gqy20）。
@@ -142,11 +153,22 @@ jobs:
             if candidate in user_agents and candidate not in found_user:
               found_user.append(candidate)
 
+          if found_system or found_user:
+            detect_reason = "matched_registered_agents"
+          elif mention_source == "controlled":
+            detect_reason = "controlled_mentions_not_registered"
+          elif mention_source == "body_fallback":
+            detect_reason = "body_mentions_not_registered"
+          else:
+            detect_reason = "no_mentions_detected"
+
           print(
             json.dumps(
               {
                 "system": ",".join(found_system),
                 "user": ",".join(found_user),
+                "mention_source": mention_source,
+                "detect_reason": detect_reason,
               },
               ensure_ascii=False,
             ),
@@ -157,6 +179,13 @@ jobs:
 
           FOUND_AGENTS=$(echo "$DETECT_OUTPUT" | python -c 'import json,sys; print((json.load(sys.stdin)).get("system",""), end="")')
           USER_MENTIONS=$(echo "$DETECT_OUTPUT" | python -c 'import json,sys; print((json.load(sys.stdin)).get("user",""), end="")')
+          MENTION_SOURCE=$(echo "$DETECT_OUTPUT" | python -c 'import json,sys; print((json.load(sys.stdin)).get("mention_source",""), end="")')
+          DETECT_REASON=$(echo "$DETECT_OUTPUT" | python -c 'import json,sys; print((json.load(sys.stdin)).get("detect_reason",""), end="")')
+
+          echo "mention_source=$MENTION_SOURCE" >> $GITHUB_OUTPUT
+          echo "detect_reason=$DETECT_REASON" >> $GITHUB_OUTPUT
+          echo "Mention source: $MENTION_SOURCE"
+          echo "Detect reason: $DETECT_REASON"
 
           if [ -n "$FOUND_AGENTS" ]; then
             echo "has_system=true" >> $GITHUB_OUTPUT
@@ -708,6 +737,8 @@ jobs:
           NEEDS_JSON: ${{ toJson(needs) }}
           SYSTEM_AGENTS: ${{ needs.detect-mentions.outputs.agents }}
           HAS_SYSTEM: ${{ needs.detect-mentions.outputs.has_system }}
+          MENTION_SOURCE: ${{ needs.detect-mentions.outputs.mention_source }}
+          DETECT_REASON: ${{ needs.detect-mentions.outputs.detect_reason }}
         run: |
           set -euo pipefail
           mkdir -p artifacts/observability
@@ -766,6 +797,8 @@ jobs:
             "context": {
               "has_system_mentions": os.getenv("HAS_SYSTEM") or "",
               "system_agents": os.getenv("SYSTEM_AGENTS") or "",
+              "mention_source": os.getenv("MENTION_SOURCE") or "",
+              "detect_reason": os.getenv("DETECT_REASON") or "",
               "job_results": results,
             },
             "failures_topn": failures_topn,
