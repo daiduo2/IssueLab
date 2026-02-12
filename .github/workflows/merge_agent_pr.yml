@@ -96,10 +96,12 @@ jobs:
 
       - name: "Check Claude Decision"
         id: decision
+        env:
+          CLAUDE_OUTPUT: ${{ steps.claude.outputs.structured_output }}
         run: |
-          echo '${{ steps.claude.outputs.structured_output }}' > /tmp/claude.json
+          printf '%s' "$CLAUDE_OUTPUT" > /tmp/claude.json
           cat /tmp/claude.json
-          APPROVE=$(cat /tmp/claude.json | jq -r '.approve')
+          APPROVE=$(jq -r '.approve // false' /tmp/claude.json 2>/dev/null || echo false)
           echo "approve=$APPROVE" >> $GITHUB_OUTPUT
           if [ "$APPROVE" != "true" ]; then
             echo "Claude did not approve."
