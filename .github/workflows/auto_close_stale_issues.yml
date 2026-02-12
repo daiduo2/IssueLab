@@ -7,12 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       max_comments:
-        description: 'Max comments threshold (default: 200)'
+        description: 'Max comments threshold (default: 100)'
         required: false
-        default: '200'
+        default: '100'
         type: string
       dry_run:
-        description: 'Dry run (no changes)'
+        description: 'Dry run (no changes, default: false)'
         required: false
         default: 'false'
         type: boolean
@@ -30,8 +30,9 @@ jobs:
       - name: Close issues with >N comments
         run: |
           # 配置
-          MAX_COMMENTS=${{ github.event.inputs.max_comments || '200' }}
-          DRY_RUN=${{ github.event.inputs.dry_run || 'true' }}
+          MAX_COMMENTS=${{ github.event.inputs.max_comments || '100' }}
+          # schedule 事件没有 inputs，这里默认 false，确保定时任务会实际关闭
+          DRY_RUN=${{ github.event.inputs.dry_run || 'false' }}
           REPO="${{ github.repository }}"
 
           echo "🔍 检查超过 $MAX_COMMENTS 回复的 issue..."
